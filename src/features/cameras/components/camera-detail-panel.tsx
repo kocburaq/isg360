@@ -10,7 +10,12 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useCameraDetections, useViolations } from '../hooks/use-camera-queries'
+import { QueryErrorState } from '@/components/query-error-state'
+import {
+  useCamera,
+  useCameraDetections,
+  useViolations,
+} from '../hooks/use-camera-queries'
 import { type Camera } from '../types'
 import { CameraStatusBadge } from './camera-status-badge'
 import { PpeStatusPanel } from './ppe-status-panel'
@@ -18,7 +23,10 @@ import { SimulatedFeed } from './simulated-feed'
 import { ViolationItem } from './violation-item'
 
 type CameraDetailPanelProps = {
-  camera: Camera | undefined
+  /** Açık olan kamera; undefined ise panel kapalıdır. */
+  cameraId: string | undefined
+  /** Listeden gelen kayıt: ayrıntı yüklenirken anında gösterilir. */
+  initialCamera?: Camera
   onClose: () => void
 }
 
@@ -42,17 +50,70 @@ function Section({
   )
 }
 
-export function CameraDetailPanel({ camera, onClose }: CameraDetailPanelProps) {
+export function CameraDetailPanel({
+  cameraId,
+  initialCamera,
+  onClose,
+}: CameraDetailPanelProps) {
   // Kapanma animasyonu sırasında içeriğin boşalmaması için son kamera korunur.
-  const [shown, setShown] = useState(camera)
-  if (camera && camera !== shown) setShown(camera)
+  const [shownId, setShownId] = useState(cameraId)
+  if (cameraId && cameraId !== shownId) setShownId(cameraId)
 
   return (
-    <Sheet open={!!camera} onOpenChange={(open) => !open && onClose()}>
+    <Sheet open={!!cameraId} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className='w-full gap-0 sm:max-w-xl'>
-        {shown && <CameraDetailContent camera={shown} />}
+        {shownId && (
+          <CameraDetailLoader
+            cameraId={shownId}
+            initialCamera={initialCamera}
+          />
+        )}
       </SheetContent>
     </Sheet>
+  )
+}
+
+/** Kamera ayrıntısını veri kaynağından (API: GET /cameras/{id}) yükler. */
+function CameraDetailLoader({
+  cameraId,
+  initialCamera,
+}: {
+  cameraId: string
+  initialCamera?: Camera
+}) {
+  const placeholder = initialCamera?.id === cameraId ? initialCamera : undefined
+  const {
+    data: camera,
+    error,
+    refetch,
+    isFetching,
+  } = useCamera(cameraId, placeholder)
+
+  if (camera) return <CameraDetailContent camera={camera} />
+
+  return (
+    <>
+      <SheetHeader className='border-b pe-12'>
+        <SheetTitle className='text-lg'>Kamera ayrıntısı</SheetTitle>
+        <SheetDescription>{cameraId}</SheetDescription>
+      </SheetHeader>
+      <div className='space-y-4 p-4'>
+        {error ? (
+          <QueryErrorState
+            compact
+            title='Kamera bilgileri yüklenemedi'
+            error={error}
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        ) : (
+          <>
+            <Skeleton className='aspect-video w-full rounded-lg' />
+            <Skeleton className='h-32 w-full' />
+          </>
+        )}
+      </div>
+    </>
   )
 }
 
@@ -65,7 +126,7 @@ function CameraDetailContent({ camera }: { camera: Camera }) {
   const info: [string, React.ReactNode][] = [
     ['Kamera kodu', <span className='font-mono'>{camera.code}</span>],
     ['Bölge', `${camera.zone.name} (${camera.zone.area})`],
-    ['Konum', camera.location],
+    ['Konum', camera.location || '—'],
     [
       'Akış',
       `${camera.stream.protocol.toUpperCase()} · ${camera.stream.resolution} · ${camera.stream.fps} fps`,
@@ -78,9 +139,19 @@ function CameraDetailContent({ camera }: { camera: Camera }) {
     ],
     [
       'Son sinyal',
-      <span title={formatDateTime(camera.lastSeenAt)}>
-        {formatRelative(camera.lastSeenAt)}
-      </span>,
+      camera.lastSeenAt ? (
+        <span title={formatDateTime(camera.lastSeenAt)}>
+          {formatRelative(camera.lastSeenAt)}
+        </span>
+      ) : (
+        'Hiç sinyal alınmadı'
+      ),
+    ],
+    [
+      'Veri kaynağı',
+      camera.isSimulated
+        ? 'Simülasyon (örnek veri)'
+        : 'Elle kayıt · gerçek telemetri yok',
     ],
   ]
 
@@ -130,6 +201,14 @@ function CameraDetailContent({ camera }: { camera: Camera }) {
         <Section title='Son İhlaller' icon={History}>
           {violations.isLoading ? (
             <Skeleton className='h-24 w-full' />
+          ) : violations.error ? (
+            <QueryErrorState
+              compact
+              title='İhlal kayıtları yüklenemedi'
+              error={violations.error}
+              onRetry={() => void violations.refetch()}
+              isRetrying={violations.isFetching}
+            />
           ) : violations.data && violations.data.length > 0 ? (
             <ul className='divide-y rounded-lg border'>
               {violations.data.slice(0, 5).map((v) => (

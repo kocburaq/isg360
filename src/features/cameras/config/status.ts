@@ -19,6 +19,10 @@ export const CAMERA_STATUS: Record<CameraStatus, StatusMeta> = {
     label: 'Çevrimdışı',
     className: 'border-destructive/30 bg-destructive/15 text-destructive',
   },
+  unknown: {
+    label: 'Bilinmiyor',
+    className: 'border-border bg-muted text-muted-foreground',
+  },
 }
 
 export const CHECK_STATE: Record<PpeCheckState, StatusMeta> = {

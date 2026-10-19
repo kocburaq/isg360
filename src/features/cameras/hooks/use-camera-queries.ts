@@ -1,10 +1,12 @@
-import { useMemo } from 'react'
-import { isToday } from 'date-fns'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { env } from '@/config/env'
 import { toast } from 'sonner'
 import { cameraKeys, cameraService } from '../api'
-import { type ViolationQuery, type ViolationStatus } from '../types'
+import {
+  type Camera,
+  type ViolationQuery,
+  type ViolationStatus,
+} from '../types'
 
 /** Gerçek backend'de veriler periyodik yenilenir; mock modda gereksiz. */
 const LIVE_REFETCH_MS = env.dataSource === 'api' ? 5_000 : false
@@ -13,6 +15,20 @@ export function useCameras() {
   return useQuery({
     queryKey: cameraKeys.list(),
     queryFn: () => cameraService.listCameras(),
+    refetchInterval: LIVE_REFETCH_MS,
+  })
+}
+
+/**
+ * Tek kamera ayrıntısı. Listeden gelen kayıt varsa anında gösterilir,
+ * ardından ayrıntı uç noktasından güncellenir.
+ */
+export function useCamera(cameraId: string | undefined, placeholder?: Camera) {
+  return useQuery({
+    queryKey: cameraKeys.detail(cameraId ?? ''),
+    queryFn: () => cameraService.getCamera(cameraId!),
+    enabled: !!cameraId,
+    placeholderData: placeholder,
     refetchInterval: LIVE_REFETCH_MS,
   })
 }
@@ -49,34 +65,31 @@ export function useUpdateViolationStatus() {
       cameraService.updateViolationStatus(id, status),
     onSuccess: () => {
       toast.success('İhlal kaydı güncellendi.')
-      // Tüm filtre kombinasyonlarındaki ihlal listelerini yenile
+      // Tüm filtre kombinasyonlarındaki ihlal listelerini ve özet sayıları yenile
       queryClient.invalidateQueries({ queryKey: cameraKeys.allViolations() })
+      queryClient.invalidateQueries({ queryKey: cameraKeys.summary() })
     },
   })
 }
 
-/** Üst özet kartları için türetilmiş değerler. */
+/** Üst özet kartları: sayılar ve servis durumları veri kaynağından gelir. */
 export function useCameraSummary() {
-  const cameras = useCameras()
-  const violations = useViolations()
+  const summary = useQuery({
+    queryKey: cameraKeys.summary(),
+    queryFn: () => cameraService.getSummary(),
+    refetchInterval: LIVE_REFETCH_MS,
+  })
   const system = useSystemStatus()
 
-  const summary = useMemo(() => {
-    const list = cameras.data ?? []
-    const vios = violations.data ?? []
-    return {
-      total: list.length,
-      online: list.filter((c) => c.status === 'online').length,
-      offline: list.filter((c) => c.status === 'offline').length,
-      violationsToday: vios.filter((v) => isToday(new Date(v.detectedAt)))
-        .length,
-      openViolations: vios.filter((v) => v.status === 'open').length,
-    }
-  }, [cameras.data, violations.data])
-
   return {
-    summary,
+    summary: summary.data,
     system: system.data,
-    isLoading: cameras.isLoading || violations.isLoading || system.isLoading,
+    isLoading: summary.isLoading || system.isLoading,
+    error: summary.error ?? system.error,
+    refetch: () => {
+      void summary.refetch()
+      void system.refetch()
+    },
+    isRefetching: summary.isFetching || system.isFetching,
   }
 }

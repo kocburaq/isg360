@@ -12,10 +12,13 @@ export const cameraService: CameraService =
 export const cameraKeys = {
   all: ['cameras'] as const,
   list: () => [...cameraKeys.all, 'list'] as const,
+  detail: (cameraId: string) =>
+    [...cameraKeys.all, 'detail', cameraId] as const,
   detections: (cameraId: string) =>
     [...cameraKeys.all, 'detections', cameraId] as const,
   allViolations: () => [...cameraKeys.all, 'violations'] as const,
   violations: (filters?: object) =>
     [...cameraKeys.allViolations(), filters ?? {}] as const,
   systemStatus: () => [...cameraKeys.all, 'system-status'] as const,
+  summary: () => [...cameraKeys.all, 'summary'] as const,
 }

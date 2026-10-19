@@ -60,7 +60,7 @@ export function CameraTile({
         </div>
         <div className='flex shrink-0 flex-col items-end gap-1'>
           <CameraStatusBadge status={camera.status} />
-          {camera.status === 'offline' && (
+          {camera.status === 'offline' && camera.lastSeenAt && (
             <span className='text-[11px] text-muted-foreground'>
               {formatRelative(camera.lastSeenAt)}
             </span>

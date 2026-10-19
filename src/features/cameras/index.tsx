@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { getRouteApi } from '@tanstack/react-router'
+import { env } from '@/config/env'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DemoNotice } from '@/components/demo-notice'
@@ -29,7 +30,13 @@ export function Cameras() {
     DEFAULT_CAMERA_FILTERS
   )
 
-  const { data: cameras = [], isLoading } = useCameras()
+  const {
+    data: cameras = [],
+    isLoading,
+    error: camerasError,
+    refetch: refetchCameras,
+    isFetching: isFetchingCameras,
+  } = useCameras()
   const { data: openViolations = [] } = useViolations({ status: ['open'] })
 
   const camerasById = useMemo(
@@ -48,7 +55,6 @@ export function Cameras() {
   }, [openViolations])
 
   const visibleCameras = filterCameras(cameras, filters)
-  const selectedCamera = selectedId ? camerasById.get(selectedId) : undefined
 
   const selectCamera = (cameraId: string | undefined) =>
     navigate({ search: (prev) => ({ ...prev, camera: cameraId }) })
@@ -63,7 +69,9 @@ export function Cameras() {
           description='Kamera görüntüleri ve KKD (baret, reflektörlü yelek) denetimi'
           actions={
             <Badge variant='outline' className='border-warning/40 text-warning'>
-              Örnek veri · Simülasyon
+              {env.dataSource === 'api'
+                ? 'API · Örnek kayıtlar'
+                : 'Örnek veri · Simülasyon'}
             </Badge>
           }
         />
@@ -100,7 +108,11 @@ export function Cameras() {
                 />
                 <CameraGrid
                   cameras={visibleCameras}
+                  totalCount={cameras.length}
                   isLoading={isLoading}
+                  error={camerasError}
+                  onRetry={() => void refetchCameras()}
+                  isRetrying={isFetchingCameras}
                   selectedId={selectedId}
                   openViolationsByCamera={openViolationsByCamera}
                   onSelect={(camera) => selectCamera(camera.id)}
@@ -122,7 +134,8 @@ export function Cameras() {
       </Main>
 
       <CameraDetailPanel
-        camera={selectedCamera}
+        cameraId={selectedId}
+        initialCamera={selectedId ? camerasById.get(selectedId) : undefined}
         onClose={() => selectCamera(undefined)}
       />
     </>

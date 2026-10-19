@@ -41,6 +41,15 @@ const SPECS: ViolationSpec[] = [
   ['cam-04', 'zone-logistics', ['helmet'], 3720, 'resolved', 0.87],
 ]
 
+const PPE_LABELS: Partial<Record<PpeClassId, string>> = {
+  helmet: 'baret',
+  vest: 'reflektörlü yelek',
+}
+
+function ppeLabel(id: PpeClassId): string {
+  return PPE_LABELS[id] ?? id
+}
+
 function severityFor(missing: PpeClassId[]): ViolationSeverity {
   if (missing.length > 1) return 'high'
   return missing[0] === 'helmet' ? 'high' : 'medium'
@@ -59,6 +68,8 @@ export function createMockViolations(): PpeViolation[] {
       severity: severityFor(missing),
       status,
       source: 'simulation',
+      description: `Simüle edilmiş tespit: ${missing.map(ppeLabel).join(', ')} eksik.`,
+      reviewedAt: status === 'open' ? null : minutesAgo(ago - 2),
       links: [],
     })
   )

@@ -1,4 +1,4 @@
-import { Wifi, WifiOff } from 'lucide-react'
+import { CircleHelp, Wifi, WifiOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { CAMERA_STATUS } from '../config/status'
@@ -14,7 +14,8 @@ export function CameraStatusBadge({
   className,
 }: CameraStatusBadgeProps) {
   const meta = CAMERA_STATUS[status]
-  const Icon = status === 'online' ? Wifi : WifiOff
+  const Icon =
+    status === 'online' ? Wifi : status === 'offline' ? WifiOff : CircleHelp
   return (
     <Badge variant='outline' className={cn(meta.className, className)}>
       <Icon />

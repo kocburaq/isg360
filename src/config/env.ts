@@ -4,13 +4,15 @@
  */
 export type DataSource = 'mock' | 'api'
 
+// "api" ve "http" aynı anlama gelir: FastAPI backend kullanılır.
+const rawSource = import.meta.env.VITE_DATA_SOURCE
 const dataSource: DataSource =
-  import.meta.env.VITE_DATA_SOURCE === 'api' ? 'api' : 'mock'
+  rawSource === 'api' || rawSource === 'http' ? 'api' : 'mock'
 
 export const env = {
-  /** Veri katmanı kaynağı. Backend hazır olana kadar varsayılan "mock". */
+  /** Veri katmanı kaynağı: "mock" (örnek veri, varsayılan) veya "api" (FastAPI). */
   dataSource,
-  /** Gelecekteki FastAPI backend adresi. */
+  /** FastAPI backend adresi (backend/ klasörü). */
   apiBaseUrl:
     import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1',
 } as const

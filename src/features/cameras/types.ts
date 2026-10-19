@@ -5,7 +5,8 @@ import { type EntityRef, type FactoryZone } from '@/types/factory'
 /* Kamera                                                              */
 /* ------------------------------------------------------------------ */
 
-export type CameraStatus = 'online' | 'offline'
+/** "unknown": gerçek telemetri yok (ör. API ile yeni eklenen kamera). */
+export type CameraStatus = 'online' | 'offline' | 'unknown'
 
 export type Camera = {
   id: EntityId
@@ -16,8 +17,8 @@ export type Camera = {
   /** Kameranın fiziksel konumu (serbest metin). */
   location: string
   status: CameraStatus
-  /** Son sinyal alınan zaman. */
-  lastSeenAt: ISODateString
+  /** Son sinyal alınan zaman; hiç sinyal alınmadıysa null. */
+  lastSeenAt: ISODateString | null
   stream: {
     protocol: 'rtsp'
     /** Gerçek RTSP adresi backend'de tutulur; arayüze gönderilmez. */
@@ -27,6 +28,10 @@ export type Camera = {
   }
   /** Bu kamerada denetlenen KKD sınıfları. */
   ppeClasses: PpeClassId[]
+  /** true: durum ve kayıtlar simülasyon/örnek veridir, gerçek telemetri değildir. */
+  isSimulated: boolean
+  createdAt?: ISODateString
+  updatedAt?: ISODateString
 }
 
 /* ------------------------------------------------------------------ */
@@ -95,6 +100,10 @@ export type PpeViolation = {
   severity: ViolationSeverity
   status: ViolationStatus
   source: DetectionSnapshot['source']
+  /** İnceleme notu / açıklama. */
+  description: string | null
+  /** Açık durumdan çıkıldığı (incelendiği) zaman. */
+  reviewedAt: ISODateString | null
   /** İleride bağlanacak kayıtlar (ör. düzeltici faaliyet iş kartı). */
   links: EntityRef[]
 }
@@ -115,6 +124,20 @@ export type ServiceHealth = {
   label: string
   state: ServiceState
   detail: string
+}
+
+/** Panel özet kartları (backend: GET /dashboard/summary). */
+export type CameraSummary = {
+  cameras: { total: number; online: number; offline: number; unknown: number }
+  violations: {
+    total: number
+    today: number
+    open: number
+    acknowledged: number
+    resolved: number
+  }
+  containsSimulatedData: boolean
+  generatedAt: ISODateString
 }
 
 export type SystemStatus = {

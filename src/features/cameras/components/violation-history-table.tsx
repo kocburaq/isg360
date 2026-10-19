@@ -29,6 +29,7 @@ import {
   DataTablePagination,
   DataTableToolbar,
 } from '@/components/data-table'
+import { QueryErrorState } from '@/components/query-error-state'
 import { getPpeClass, PPE_CLASSES } from '../config/ppe-classes'
 import { VIOLATION_SEVERITY, VIOLATION_STATUS } from '../config/status'
 import { useViolations } from '../hooks/use-camera-queries'
@@ -46,7 +47,14 @@ const includesAny: FilterFn<PpeViolation> = (row, id, value: string[]) =>
   value.some((v) => row.getValue<string[]>(id).includes(v))
 
 export function ViolationHistoryTable({ cameras }: ViolationHistoryTableProps) {
-  const { data = [], isLoading } = useViolations()
+  const {
+    data = [],
+    isLoading,
+    error,
+    refetch,
+    isFetching,
+    isSuccess,
+  } = useViolations()
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'detectedAt', desc: true },
   ])
@@ -181,6 +189,17 @@ export function ViolationHistoryTable({ cameras }: ViolationHistoryTableProps) {
     getFacetedUniqueValues: getFacetedUniqueValues(),
     initialState: { pagination: { pageSize: 10 } },
   })
+
+  if (error && !isSuccess) {
+    return (
+      <QueryErrorState
+        title='İhlal geçmişi yüklenemedi'
+        error={error}
+        onRetry={() => void refetch()}
+        isRetrying={isFetching}
+      />
+    )
+  }
 
   return (
     <div className='space-y-4'>

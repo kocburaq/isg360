@@ -1,51 +1,95 @@
 import { httpClient } from '@/services/http-client'
+import { type Paginated } from '@/types/common'
+import {
+  type Camera,
+  type CameraSummary,
+  type PpeViolation,
+  type SystemStatus,
+} from '../types'
 import { type CameraService } from './camera-service'
 
 /**
- * FastAPI backend uygulaması (henüz backend yok).
- * Uç noktalar taslaktır; backend geliştirilirken bu sözleşme birlikte netleştirilmelidir.
+ * FastAPI backend uygulaması (backend/ klasörü). Uç noktalar (/api/v1 altında):
  *
- *   GET   /cameras
- *   GET   /cameras/{id}/detections/latest   → 404 ise tespit yok
- *   GET   /ppe/violations?camera_id=&status=
- *   PATCH /ppe/violations/{id}               { status }
- *   GET   /system/status
+ *   GET   /cameras                 sayfalı liste
+ *   GET   /cameras/{id}            kamera ayrıntısı
+ *   GET   /violations              ?camera_id=&status=open&status=...  (sayfalı)
+ *   PATCH /violations/{id}         { status }
+ *   GET   /dashboard/summary       özet sayılar
+ *   GET   /health                  servis durumları
+ *
+ * Swagger: http://localhost:8000/docs
  */
+
+/** Backend'in izin verdiği en büyük sayfa boyutu. */
+const PAGE_SIZE = 500
+/** Güvenlik sınırı: en fazla bu kadar sayfa çekilir. */
+const MAX_PAGES = 20
+
+/** Sayfalı bir listenin tüm sayfalarını sırayla çeker. */
+async function fetchAll<T>(
+  path: string,
+  params: Record<string, unknown> = {}
+): Promise<T[]> {
+  const items: T[] = []
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const { data } = await httpClient.get<Paginated<T>>(path, {
+      params: { ...params, page, page_size: PAGE_SIZE },
+    })
+    items.push(...data.items)
+    if (items.length >= data.total || data.items.length === 0) break
+  }
+  return items
+}
+
+type HealthResponse = SystemStatus & { status: 'ok' | 'error' }
+
 export function createHttpCameraService(): CameraService {
   return {
-    async listCameras() {
-      const { data } = await httpClient.get('/cameras')
-      return data
+    listCameras() {
+      return fetchAll<Camera>('/cameras')
     },
 
-    async getLatestDetections(cameraId) {
-      const response = await httpClient.get(
-        `/cameras/${encodeURIComponent(cameraId)}/detections/latest`,
-        { validateStatus: (s) => s === 200 || s === 404 }
+    async getCamera(cameraId) {
+      const { data } = await httpClient.get<Camera>(
+        `/cameras/${encodeURIComponent(cameraId)}`
       )
-      return response.status === 404 ? null : response.data
+      return data
     },
 
-    async listViolations(query) {
-      const { data } = await httpClient.get('/ppe/violations', {
-        params: {
-          camera_id: query?.cameraId,
-          status: query?.status?.join(','),
-        },
+    async getLatestDetections() {
+      // Görüntü işleme (YOLO) servisi bu aşamada yok; backend tespit kaydı tutmaz.
+      // Arayüz "Tespit kaydı yok" durumunu gösterir.
+      return null
+    },
+
+    listViolations(query) {
+      return fetchAll<PpeViolation>('/violations', {
+        camera_id: query?.cameraId,
+        // Tekrarlanan parametre olarak gönderilir: status=open&status=acknowledged
+        status: query?.status,
       })
-      return data
     },
 
     async updateViolationStatus(id, status) {
-      const { data } = await httpClient.patch(
-        `/ppe/violations/${encodeURIComponent(id)}`,
+      const { data } = await httpClient.patch<PpeViolation>(
+        `/violations/${encodeURIComponent(id)}`,
         { status }
       )
       return data
     },
 
     async getSystemStatus() {
-      const { data } = await httpClient.get('/system/status')
+      const { data } = await httpClient.get<HealthResponse>('/health')
+      return {
+        state: data.state,
+        checkedAt: data.checkedAt,
+        services: data.services,
+      }
+    },
+
+    async getSummary() {
+      const { data } = await httpClient.get<CameraSummary>('/dashboard/summary')
       return data
     },
   }

@@ -63,6 +63,28 @@ describe('handleServerError', () => {
     expect(toastError).toHaveBeenCalledWith('Bir hata oluştu.')
   })
 
+  it('uses the backend error message from the standard error body', () => {
+    const error = new AxiosError('Not found')
+    error.response = {
+      status: 404,
+      data: {
+        error: { code: 'not_found', message: 'Kamera bulunamadı: cam-99' },
+      },
+    } as AxiosError['response']
+
+    handleServerError(error)
+
+    expect(toastError).toHaveBeenCalledWith('Kamera bulunamadı: cam-99')
+  })
+
+  it('explains when the backend cannot be reached', () => {
+    handleServerError(new AxiosError('Network Error', 'ERR_NETWORK'))
+
+    expect(toastError).toHaveBeenCalledWith(
+      expect.stringContaining('Sunucuya ulaşılamadı')
+    )
+  })
+
   it('logs the error to the console in development', () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     const err = new Error('logged')

@@ -1,10 +1,11 @@
 {
   "name": "factory-control-system",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "vite --mode api",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

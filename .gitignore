@@ -32,3 +32,15 @@ dist-ssr
 # Vitest artifacts (browser screenshots/attachments)
 **/__screenshots__/
 .vitest-attachments/
+
+# Backend (Python / FastAPI)
+backend/.venv/
+backend/.env
+backend/data/*
+!backend/data/.gitignore
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.db
+*.sqlite
+*.sqlite3

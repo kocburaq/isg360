@@ -1,0 +1,16 @@
+# Çalışma zamanı bağımlılıkları (sürümler test edilen kombinasyona sabitlendi)
+fastapi==0.146.0
+starlette==1.9.0
+pydantic==2.14.1
+pydantic-settings==2.16.0
+# 2.0 serisi: C uzantısı (ör. Windows Uygulama Denetimi tarafından) engellenirse saf Python'a
+# otomatik geçer. 2.1 serisinde bu yedek yol yoktur.
+SQLAlchemy==2.0.55
+alembic==1.20.0
+uvicorn==0.54.0
+python-dotenv==1.2.4
+# Windows'ta IANA saat dilimi verisi (Europe/Istanbul) için gerekli
+tzdata==2026.5
+
+# PostgreSQL'e geçişte eklenecek sürücü:
+# psycopg[binary]==3.*

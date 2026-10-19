@@ -1,6 +1,7 @@
 import { type EntityId } from '@/types/common'
 import {
   type Camera,
+  type CameraSummary,
   type DetectionSnapshot,
   type PpeViolation,
   type SystemStatus,
@@ -15,6 +16,8 @@ import {
  */
 export interface CameraService {
   listCameras(): Promise<Camera[]>
+  /** Tek kamera ayrıntısı. */
+  getCamera(cameraId: EntityId): Promise<Camera>
   /** Kameradan alınan son tespit sonucu; kayıt yoksa null. */
   getLatestDetections(cameraId: EntityId): Promise<DetectionSnapshot | null>
   listViolations(query?: ViolationQuery): Promise<PpeViolation[]>
@@ -23,4 +26,6 @@ export interface CameraService {
     status: ViolationStatus
   ): Promise<PpeViolation>
   getSystemStatus(): Promise<SystemStatus>
+  /** Panel özet kartları için sayılar. */
+  getSummary(): Promise<CameraSummary>
 }

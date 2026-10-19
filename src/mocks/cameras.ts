@@ -22,6 +22,7 @@ export function createMockCameras(): Camera[] {
       lastSeenAt: minutesAgo(0),
       stream: { ...defaultStream },
       ppeClasses: ['helmet', 'vest'],
+      isSimulated: true,
     },
     {
       id: 'cam-02',
@@ -33,6 +34,7 @@ export function createMockCameras(): Camera[] {
       lastSeenAt: minutesAgo(0),
       stream: { ...defaultStream },
       ppeClasses: ['helmet', 'vest'],
+      isSimulated: true,
     },
     {
       id: 'cam-03',
@@ -44,6 +46,7 @@ export function createMockCameras(): Camera[] {
       lastSeenAt: minutesAgo(1),
       stream: { ...defaultStream, resolution: '2560×1440' },
       ppeClasses: ['helmet', 'vest'],
+      isSimulated: true,
     },
     {
       id: 'cam-04',
@@ -55,6 +58,7 @@ export function createMockCameras(): Camera[] {
       lastSeenAt: minutesAgo(0),
       stream: { ...defaultStream },
       ppeClasses: ['helmet', 'vest'],
+      isSimulated: true,
     },
     {
       id: 'cam-05',
@@ -66,6 +70,7 @@ export function createMockCameras(): Camera[] {
       lastSeenAt: minutesAgo(134),
       stream: { ...defaultStream, fps: 15, resolution: '1280×720' },
       ppeClasses: ['helmet', 'vest'],
+      isSimulated: true,
     },
     {
       id: 'cam-06',
@@ -77,6 +82,7 @@ export function createMockCameras(): Camera[] {
       lastSeenAt: minutesAgo(2),
       stream: { ...defaultStream },
       ppeClasses: ['helmet', 'vest'],
+      isSimulated: true,
     },
   ]
 }

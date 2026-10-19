@@ -1,0 +1,10 @@
+[project]
+name = "fcs-backend"
+version = "0.2.0"
+description = "Factory Control System — FastAPI backend (yerel geliştirme)"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["error::DeprecationWarning:app.*"]
