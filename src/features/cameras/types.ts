@@ -1,23 +1,25 @@
 import { type EntityId, type ISODateString } from '@/types/common'
-import { type EntityRef, type FactoryZone } from '@/types/factory'
+import { type FactoryRef, type FactoryZone } from '@/types/factory'
 
 /* ------------------------------------------------------------------ */
 /* Kamera                                                              */
 /* ------------------------------------------------------------------ */
 
-export type CameraStatus = 'online' | 'offline'
+/** "unknown": gerçek telemetri yok (ör. API ile yeni eklenen kamera). */
+export type CameraStatus = 'online' | 'offline' | 'unknown'
 
 export type Camera = {
   id: EntityId
   /** Saha etiketi, ör. "CAM-01". */
   code: string
   name: string
+  factory: FactoryRef
   zone: FactoryZone
   /** Kameranın fiziksel konumu (serbest metin). */
   location: string
   status: CameraStatus
-  /** Son sinyal alınan zaman. */
-  lastSeenAt: ISODateString
+  /** Son sinyal alınan zaman; hiç sinyal alınmadıysa null. */
+  lastSeenAt: ISODateString | null
   stream: {
     protocol: 'rtsp'
     /** Gerçek RTSP adresi backend'de tutulur; arayüze gönderilmez. */
@@ -27,6 +29,12 @@ export type Camera = {
   }
   /** Bu kamerada denetlenen KKD sınıfları. */
   ppeClasses: PpeClassId[]
+  /** true: durum ve kayıtlar simülasyon/örnek veridir, gerçek telemetri değildir. */
+  isSimulated: boolean
+  /** Kamerayı okuyan saha sunucusu (edge); atanmışsa durum heartbeat'ten gelir. */
+  edgeNodeId: EntityId | null
+  createdAt?: ISODateString
+  updatedAt?: ISODateString
 }
 
 /* ------------------------------------------------------------------ */
@@ -81,6 +89,13 @@ export type DetectionSnapshot = {
 /* İhlaller                                                            */
 /* ------------------------------------------------------------------ */
 
+/**
+ * İhlal türleri (backend ve edge sözleşmesiyle aynı).
+ * Yeni tür eklemek için buraya ve `config/violation-types.ts` içine tanım eklenir.
+ */
+export type ViolationType =
+  'missing_ppe' | 'restricted_area' | 'missing_harness'
+
 export type ViolationStatus = 'open' | 'acknowledged' | 'resolved'
 export type ViolationSeverity = 'low' | 'medium' | 'high'
 
@@ -88,20 +103,37 @@ export type PpeViolation = {
   id: EntityId
   cameraId: EntityId
   zoneId: EntityId
-  /** Eksik tespit edilen KKD sınıfları. */
+  factoryId?: EntityId
+  violationType: ViolationType
+  /** Eksik tespit edilen KKD sınıfları (yalnızca missing_ppe türünde dolu). */
   missing: PpeClassId[]
   detectedAt: ISODateString
   confidence: number
   severity: ViolationSeverity
   status: ViolationStatus
   source: DetectionSnapshot['source']
-  /** İleride bağlanacak kayıtlar (ör. düzeltici faaliyet iş kartı). */
-  links: EntityRef[]
+  /** İnceleme notu / açıklama. */
+  description: string | null
+  /** Açık durumdan çıkıldığı (incelendiği) zaman. */
+  reviewedAt: ISODateString | null
+  /** İhlalin bittiği zaman (süren ihlallerde null). */
+  endedAt?: ISODateString | null
+  /** Edge kaynaklı olay bilgileri (seed kayıtlarında null). */
+  eventId?: string | null
+  edgeNodeId?: EntityId | null
+  ruleId?: string | null
+  trackId?: string | null
+  modelRef?: string | null
 }
 
 export type ViolationQuery = {
   cameraId?: EntityId
+  factoryId?: EntityId
   status?: ViolationStatus[]
+}
+
+export type CameraQuery = {
+  factoryId?: EntityId
 }
 
 /* ------------------------------------------------------------------ */
@@ -115,6 +147,20 @@ export type ServiceHealth = {
   label: string
   state: ServiceState
   detail: string
+}
+
+/** Panel özet kartları (backend: GET /dashboard/summary). */
+export type CameraSummary = {
+  cameras: { total: number; online: number; offline: number; unknown: number }
+  violations: {
+    total: number
+    today: number
+    open: number
+    acknowledged: number
+    resolved: number
+  }
+  containsSimulatedData: boolean
+  generatedAt: ISODateString
 }
 
 export type SystemStatus = {

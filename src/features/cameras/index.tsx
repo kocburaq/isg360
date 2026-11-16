@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { getRouteApi } from '@tanstack/react-router'
+import { env } from '@/config/env'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DemoNotice } from '@/components/demo-notice'
@@ -10,6 +11,7 @@ import { CameraDetailPanel } from './components/camera-detail-panel'
 import { CameraFilters } from './components/camera-filters'
 import { CameraGrid } from './components/camera-grid'
 import { CameraSummaryCards } from './components/camera-summary-cards'
+import { FactorySelect } from './components/factory-select'
 import { ViolationFeed } from './components/violation-feed'
 import { ViolationHistoryTable } from './components/violation-history-table'
 import { useCameras, useViolations } from './hooks/use-camera-queries'
@@ -23,14 +25,27 @@ const route = getRouteApi('/_authenticated/cameras/')
 
 export function Cameras() {
   // Seçili kamera ve sekme URL'de tutulur; bağlantı paylaşılabilir.
-  const { camera: selectedId, tab = 'cameras' } = route.useSearch()
+  const {
+    camera: selectedId,
+    tab = 'cameras',
+    factory: factoryId,
+  } = route.useSearch()
   const navigate = route.useNavigate()
   const [filters, setFilters] = useState<CameraFilterState>(
     DEFAULT_CAMERA_FILTERS
   )
 
-  const { data: cameras = [], isLoading } = useCameras()
-  const { data: openViolations = [] } = useViolations({ status: ['open'] })
+  const {
+    data: cameras = [],
+    isLoading,
+    error: camerasError,
+    refetch: refetchCameras,
+    isFetching: isFetchingCameras,
+  } = useCameras({ factoryId })
+  const { data: openViolations = [] } = useViolations({
+    status: ['open'],
+    factoryId,
+  })
 
   const camerasById = useMemo(
     () => new Map(cameras.map((c) => [c.id, c])),
@@ -48,10 +63,17 @@ export function Cameras() {
   }, [openViolations])
 
   const visibleCameras = filterCameras(cameras, filters)
-  const selectedCamera = selectedId ? camerasById.get(selectedId) : undefined
 
   const selectCamera = (cameraId: string | undefined) =>
     navigate({ search: (prev) => ({ ...prev, camera: cameraId }) })
+
+  const selectFactory = (id: string | undefined) => {
+    // Bölge filtresi fabrikaya özgüdür; fabrika değişince sıfırlanır
+    setFilters((f) => ({ ...f, zoneId: 'all' }))
+    navigate({
+      search: (prev) => ({ ...prev, factory: id, camera: undefined }),
+    })
+  }
 
   return (
     <>
@@ -62,15 +84,23 @@ export function Cameras() {
           title='Kamera Yönetimi'
           description='Kamera görüntüleri ve KKD (baret, reflektörlü yelek) denetimi'
           actions={
-            <Badge variant='outline' className='border-warning/40 text-warning'>
-              Örnek veri · Simülasyon
-            </Badge>
+            <>
+              <FactorySelect value={factoryId} onChange={selectFactory} />
+              <Badge
+                variant='outline'
+                className='border-warning/40 text-warning'
+              >
+                {env.dataSource === 'api'
+                  ? 'API · Örnek kayıtlar'
+                  : 'Örnek veri · Simülasyon'}
+              </Badge>
+            </>
           }
         />
 
         <DemoNotice />
 
-        <CameraSummaryCards />
+        <CameraSummaryCards factoryId={factoryId} />
 
         <Tabs
           value={tab}
@@ -100,7 +130,11 @@ export function Cameras() {
                 />
                 <CameraGrid
                   cameras={visibleCameras}
+                  totalCount={cameras.length}
                   isLoading={isLoading}
+                  error={camerasError}
+                  onRetry={() => void refetchCameras()}
+                  isRetrying={isFetchingCameras}
                   selectedId={selectedId}
                   openViolationsByCamera={openViolationsByCamera}
                   onSelect={(camera) => selectCamera(camera.id)}
@@ -108,6 +142,7 @@ export function Cameras() {
               </div>
               <aside>
                 <ViolationFeed
+                  factoryId={factoryId}
                   camerasById={camerasById}
                   onSelectCamera={selectCamera}
                 />
@@ -116,13 +151,14 @@ export function Cameras() {
           </TabsContent>
 
           <TabsContent value='history'>
-            <ViolationHistoryTable cameras={cameras} />
+            <ViolationHistoryTable cameras={cameras} factoryId={factoryId} />
           </TabsContent>
         </Tabs>
       </Main>
 
       <CameraDetailPanel
-        camera={selectedCamera}
+        cameraId={selectedId}
+        initialCamera={selectedId ? camerasById.get(selectedId) : undefined}
         onClose={() => selectCamera(undefined)}
       />
     </>

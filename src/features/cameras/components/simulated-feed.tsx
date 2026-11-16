@@ -1,4 +1,4 @@
-import { VideoOff } from 'lucide-react'
+import { CircleHelp, VideoOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getPpeClass } from '../config/ppe-classes'
 import { personState } from '../lib/ppe'
@@ -30,7 +30,8 @@ export function SimulatedFeed({
   size = 'sm',
   className,
 }: SimulatedFeedProps) {
-  const isOffline = camera.status === 'offline'
+  const isOnline = camera.status === 'online'
+  const PlaceholderIcon = camera.status === 'offline' ? VideoOff : CircleHelp
 
   return (
     <div
@@ -41,10 +42,17 @@ export function SimulatedFeed({
       role='img'
       aria-label={`${camera.name} için örnek görüntü (simülasyon)`}
     >
-      {isOffline ? (
+      {!isOnline ? (
         <div className='flex h-full flex-col items-center justify-center gap-2 bg-[repeating-linear-gradient(45deg,transparent_0_12px,rgb(255_255_255/0.03)_12px_24px)] text-slate-400'>
-          <VideoOff className={size === 'lg' ? 'size-10' : 'size-7'} />
-          <span className='text-sm font-medium'>Sinyal yok</span>
+          <PlaceholderIcon className={size === 'lg' ? 'size-10' : 'size-7'} />
+          <span className='text-sm font-medium'>
+            {camera.status === 'offline' ? 'Sinyal yok' : 'Durum bilinmiyor'}
+          </span>
+          {camera.status === 'unknown' && (
+            <span className='px-4 text-center text-xs text-slate-500'>
+              Kamera bağlantısı yapılandırılmadı
+            </span>
+          )}
         </div>
       ) : (
         <>

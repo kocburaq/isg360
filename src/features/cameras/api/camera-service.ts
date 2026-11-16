@@ -1,6 +1,9 @@
 import { type EntityId } from '@/types/common'
+import { type Factory } from '@/types/factory'
 import {
   type Camera,
+  type CameraQuery,
+  type CameraSummary,
   type DetectionSnapshot,
   type PpeViolation,
   type SystemStatus,
@@ -14,7 +17,10 @@ import {
  * mock veya FastAPI olabilir. Yeni kaynak eklemek için bu arayüzü uygulayın.
  */
 export interface CameraService {
-  listCameras(): Promise<Camera[]>
+  listFactories(): Promise<Factory[]>
+  listCameras(query?: CameraQuery): Promise<Camera[]>
+  /** Tek kamera ayrıntısı. */
+  getCamera(cameraId: EntityId): Promise<Camera>
   /** Kameradan alınan son tespit sonucu; kayıt yoksa null. */
   getLatestDetections(cameraId: EntityId): Promise<DetectionSnapshot | null>
   listViolations(query?: ViolationQuery): Promise<PpeViolation[]>
@@ -23,4 +29,6 @@ export interface CameraService {
     status: ViolationStatus
   ): Promise<PpeViolation>
   getSystemStatus(): Promise<SystemStatus>
+  /** Panel özet kartları için sayılar (isteğe bağlı fabrika filtresi). */
+  getSummary(factoryId?: EntityId): Promise<CameraSummary>
 }

@@ -4,6 +4,7 @@ import {
   type ViolationSeverity,
   type ViolationStatus,
 } from '@/features/cameras/types'
+import { factoryIdOfZone } from './factory-zones'
 import { minutesAgo } from './utils'
 
 /** [kamera, bölge, eksik KKD, kaç dakika önce, durum, güven] */
@@ -41,6 +42,21 @@ const SPECS: ViolationSpec[] = [
   ['cam-04', 'zone-logistics', ['helmet'], 3720, 'resolved', 0.87],
 ]
 
+/** Kimliği sabit ek kayıtlar (backend seed EXTRA_VIOLATIONS ile aynı). */
+const EXTRA_SPECS: [string, ...ViolationSpec][] = [
+  ['vio-0023', 'cam-07', 'zone-press', ['helmet'], 400, 'resolved', 0.86],
+  ['vio-0024', 'cam-08', 'zone-press', ['vest'], 2600, 'resolved', 0.84],
+]
+
+const PPE_LABELS: Partial<Record<PpeClassId, string>> = {
+  helmet: 'baret',
+  vest: 'reflektörlü yelek',
+}
+
+function ppeLabel(id: PpeClassId): string {
+  return PPE_LABELS[id] ?? id
+}
+
 function severityFor(missing: PpeClassId[]): ViolationSeverity {
   if (missing.length > 1) return 'high'
   return missing[0] === 'helmet' ? 'high' : 'medium'
@@ -48,18 +64,33 @@ function severityFor(missing: PpeClassId[]): ViolationSeverity {
 
 /** SİMÜLE EDİLMİŞ İHLAL KAYITLARI — gerçek olay değildir. */
 export function createMockViolations(): PpeViolation[] {
-  return SPECS.map(
-    ([cameraId, zoneId, missing, ago, status, confidence], i) => ({
-      id: `vio-${String(SPECS.length - i).padStart(4, '0')}`,
+  const specs: [string, ...ViolationSpec][] = [
+    ...SPECS.map(
+      (spec, i) =>
+        [`vio-${String(SPECS.length - i).padStart(4, '0')}`, ...spec] as [
+          string,
+          ...ViolationSpec,
+        ]
+    ),
+    ...EXTRA_SPECS,
+  ]
+  return specs.map(
+    ([id, cameraId, zoneId, missing, ago, status, confidence]) => ({
+      id,
       cameraId,
       zoneId,
+      factoryId: factoryIdOfZone(zoneId),
+      violationType: 'missing_ppe',
       missing,
       detectedAt: minutesAgo(ago),
       confidence,
       severity: severityFor(missing),
       status,
       source: 'simulation',
-      links: [],
+      description: `Simüle edilmiş tespit: ${missing.map(ppeLabel).join(', ')} eksik.`,
+      reviewedAt: status === 'open' ? null : minutesAgo(ago - 2),
+      endedAt: null,
+      edgeNodeId: null,
     })
   )
 }

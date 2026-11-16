@@ -18,8 +18,6 @@ import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedCamerasIndexRouteImport } from './routes/_authenticated/cameras/index'
-import { Route as AuthenticatedDronesIndexRouteImport } from './routes/_authenticated/drones/index'
-import { Route as AuthenticatedWorkOrdersIndexRouteImport } from './routes/_authenticated/work-orders/index'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -66,18 +64,6 @@ const AuthenticatedCamerasIndexRoute =
     path: '/cameras/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedDronesIndexRoute =
-  AuthenticatedDronesIndexRouteImport.update({
-    id: '/drones/',
-    path: '/drones/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedWorkOrdersIndexRoute =
-  AuthenticatedWorkOrdersIndexRouteImport.update({
-    id: '/work-orders/',
-    path: '/work-orders/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -88,8 +74,6 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/cameras/': typeof AuthenticatedCamerasIndexRoute
-  '/drones/': typeof AuthenticatedDronesIndexRoute
-  '/work-orders/': typeof AuthenticatedWorkOrdersIndexRoute
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof authSignInRoute
@@ -100,8 +84,6 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/': typeof AuthenticatedIndexRoute
   '/cameras': typeof AuthenticatedCamerasIndexRoute
-  '/drones': typeof AuthenticatedDronesIndexRoute
-  '/work-orders': typeof AuthenticatedWorkOrdersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -114,34 +96,13 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/cameras/': typeof AuthenticatedCamerasIndexRoute
-  '/_authenticated/drones/': typeof AuthenticatedDronesIndexRoute
-  '/_authenticated/work-orders/': typeof AuthenticatedWorkOrdersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
-    | '/sign-in'
-    | '/401'
-    | '/403'
-    | '/404'
-    | '/500'
-    | '/503'
-    | '/cameras/'
-    | '/drones/'
-    | '/work-orders/'
+    '/' | '/sign-in' | '/401' | '/403' | '/404' | '/500' | '/503' | '/cameras/'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/sign-in'
-    | '/401'
-    | '/403'
-    | '/404'
-    | '/500'
-    | '/503'
-    | '/'
-    | '/cameras'
-    | '/drones'
-    | '/work-orders'
+  to: '/sign-in' | '/401' | '/403' | '/404' | '/500' | '/503' | '/' | '/cameras'
   id:
     | '__root__'
     | '/_authenticated'
@@ -153,8 +114,6 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/'
     | '/_authenticated/cameras/'
-    | '/_authenticated/drones/'
-    | '/_authenticated/work-orders/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -232,35 +191,17 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCamerasIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/drones/': {
-      id: '/_authenticated/drones/'
-      path: '/drones'
-      fullPath: '/drones/'
-      preLoaderRoute: typeof AuthenticatedDronesIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/work-orders/': {
-      id: '/_authenticated/work-orders/'
-      path: '/work-orders'
-      fullPath: '/work-orders/'
-      preLoaderRoute: typeof AuthenticatedWorkOrdersIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedCamerasIndexRoute: typeof AuthenticatedCamerasIndexRoute
-  AuthenticatedDronesIndexRoute: typeof AuthenticatedDronesIndexRoute
-  AuthenticatedWorkOrdersIndexRoute: typeof AuthenticatedWorkOrdersIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedCamerasIndexRoute: AuthenticatedCamerasIndexRoute,
-  AuthenticatedDronesIndexRoute: AuthenticatedDronesIndexRoute,
-  AuthenticatedWorkOrdersIndexRoute: AuthenticatedWorkOrdersIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

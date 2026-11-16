@@ -35,8 +35,8 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             Tesis güvenliği ve operasyonlar tek merkezde.
           </h2>
           <p className='text-muted-foreground'>
-            Kamera ve KKD denetimi, iş kartları ve drone görevleri için modüler
-            yönetim paneli.
+            Kamera görüntüleri, görüntü işleme ve KKD denetimi için yönetim
+            paneli.
           </p>
         </div>
         <p className='relative text-xs text-muted-foreground'>

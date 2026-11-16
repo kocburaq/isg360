@@ -7,22 +7,26 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { QueryErrorState } from '@/components/query-error-state'
 import { useViolations } from '../hooks/use-camera-queries'
 import { type Camera } from '../types'
 import { ViolationItem } from './violation-item'
 
 type ViolationFeedProps = {
+  factoryId?: string
   camerasById: Map<string, Camera>
   onSelectCamera: (cameraId: string) => void
 }
 
 /** Açık ve incelenmekte olan ihlallerin bildirim listesi. */
 export function ViolationFeed({
+  factoryId,
   camerasById,
   onSelectCamera,
 }: ViolationFeedProps) {
-  const { data, isLoading } = useViolations({
+  const { data, isLoading, error, refetch, isFetching } = useViolations({
     status: ['open', 'acknowledged'],
+    factoryId,
   })
   const openCount = data?.filter((v) => v.status === 'open').length ?? 0
 
@@ -47,6 +51,15 @@ export function ViolationFeed({
               <Skeleton key={i} className='h-16 w-full' />
             ))}
           </div>
+        ) : error && !data ? (
+          <QueryErrorState
+            compact
+            className='m-3'
+            title='Bildirimler yüklenemedi'
+            error={error}
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
         ) : data && data.length > 0 ? (
           <div className='max-h-[32rem] overflow-y-auto'>
             <ul className='divide-y'>

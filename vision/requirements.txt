@@ -1,0 +1,8 @@
+# Edge servisi çalışma zamanı bağımlılıkları.
+# 3.1 aşamasında yalnızca merkez ile iletişim ve simülatör vardır; video okuma
+# (3.3) ve model çalıştırma (3.4) bağımlılıkları ilgili aşamalarda eklenecektir.
+-e ../packages/contracts
+httpx==0.28.1
+pydantic==2.14.3
+pydantic-settings==2.16.0
+python-dotenv==1.2.4
