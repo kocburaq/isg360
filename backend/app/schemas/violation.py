@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar
 
 from pydantic import Field
 
@@ -12,13 +12,6 @@ from app.models.enums import (
     ViolationType,
 )
 from app.schemas.common import ApiModel, PatchModel
-
-
-class EntityRef(ApiModel):
-    """Başka bir modüldeki kayda referans (ör. düzeltici faaliyet iş kartı)."""
-
-    module: Literal["cameras", "work-orders", "drones"]
-    id: str
 
 
 class ViolationOut(ApiModel):
@@ -44,8 +37,6 @@ class ViolationOut(ApiModel):
     rule_id: str | None
     track_id: str | None
     model_ref: str | None
-    # İş Kartları modülü geldiğinde doldurulacak
-    links: list[EntityRef] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

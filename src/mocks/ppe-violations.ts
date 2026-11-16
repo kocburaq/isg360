@@ -91,7 +91,6 @@ export function createMockViolations(): PpeViolation[] {
       reviewedAt: status === 'open' ? null : minutesAgo(ago - 2),
       endedAt: null,
       edgeNodeId: null,
-      links: [],
     })
   )
 }

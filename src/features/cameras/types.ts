@@ -1,9 +1,5 @@
 import { type EntityId, type ISODateString } from '@/types/common'
-import {
-  type EntityRef,
-  type FactoryRef,
-  type FactoryZone,
-} from '@/types/factory'
+import { type FactoryRef, type FactoryZone } from '@/types/factory'
 
 /* ------------------------------------------------------------------ */
 /* Kamera                                                              */
@@ -128,8 +124,6 @@ export type PpeViolation = {
   ruleId?: string | null
   trackId?: string | null
   modelRef?: string | null
-  /** İleride bağlanacak kayıtlar (ör. düzeltici faaliyet iş kartı). */
-  links: EntityRef[]
 }
 
 export type ViolationQuery = {

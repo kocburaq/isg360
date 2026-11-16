@@ -1,6 +1,6 @@
 """v1 API yönlendiricisi.
 
-Yeni bir modül (ör. drones, work_orders) eklemek için:
+Yeni bir modül (ör. raporlama) eklemek için:
 models → repositories → services → schemas → api/v1/endpoints dosyalarını oluşturup
 router'ı buraya kaydetmek yeterlidir.
 """

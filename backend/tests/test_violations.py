@@ -17,14 +17,13 @@ def test_list_violations_newest_first(client: TestClient) -> None:
     v = items[0]
     assert set(v) >= {
         "id", "cameraId", "zoneId", "violationType", "missing", "detectedAt", "confidence",
-        "severity", "status", "source", "description", "reviewedAt", "links",
+        "severity", "status", "source", "description", "reviewedAt",
         "factoryId", "endedAt", "eventId", "edgeNodeId", "ruleId", "trackId", "modelRef",
     }  # fmt: skip
     assert v["factoryId"] == "fac-default"
     assert v["eventId"] is None and v["edgeNodeId"] is None
     assert v["violationType"] == "missing_ppe"
     assert v["source"] == "simulation"
-    assert v["links"] == []
 
 
 def test_list_violations_filters(client: TestClient) -> None:

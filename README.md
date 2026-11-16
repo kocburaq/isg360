@@ -1,18 +1,17 @@
 # Factory Control System
 
-Endüstriyel fabrikalar için yapay zekâ destekli, modüler yönetim sistemi.
+Endüstriyel fabrikalar için yapay zekâ destekli, kamera tabanlı görüntü işleme ve İSG denetim sistemi
+(KKD tespiti, yasaklı bölge kontrolü, yüksekte çalışma emniyet kemeri denetimi).
 
 - **1. aşama:** Web arayüzü (React)
 - **2. aşama:** FastAPI backend, SQLite veritabanı ve Kamera Yönetimi'nin API ile çalışması
 - **3.1 aşaması:** Çok fabrikalı yapı, saha sunucusu (edge) ↔ merkez API'si, ortak sözleşme paketi ve edge simülatörü
 
-Akış: **Admin Girişi → Ana Kontrol Paneli → Modül Seçimi**
+Akış: **Admin Girişi → Ana Kontrol Paneli → Kamera Yönetimi**
 
-| Modül           | Durum                                                                            |
-| --------------- | -------------------------------------------------------------------------------- |
-| Kamera Yönetimi | Arayüz + REST API + kalıcı veritabanı + edge olayları (henüz simülatör kaynaklı) |
-| İş Kartları     | "Yakında" sayfası                                                                |
-| Drone Yönetimi  | "Yakında" sayfası                                                                |
+Sistem tek modülden oluşur: **Kamera Yönetimi** (arayüz + REST API + kalıcı veritabanı + edge olayları;
+olaylar şimdilik simülatör kaynaklıdır). Önceki planlarda yer alan İş Kartları ve Drone Yönetimi modülleri
+kapsamdan çıkarılmıştır.
 
 > **Güvenlik ve prototip uyarısı**
 >
@@ -283,7 +282,7 @@ her zaman `{ "error": { "code", "message", "details" } }`.
 ```
 isg360/
 ├── src/                         Frontend (React)
-│   ├── config/ modules/ types/  Ortam değişkenleri, modül kaydı, ortak tipler (Factory, FactoryZone, EntityRef…)
+│   ├── config/ modules/ types/  Ortam değişkenleri, modül kaydı, ortak tipler (Factory, FactoryZone, Paginated…)
 │   ├── services/ mocks/         axios istemcisi, auth sözleşmesi, mock modu verisi
 │   ├── features/cameras/        Kamera Yönetimi
 │   │   ├── api/                 CameraService arayüzü · mock ve HTTP uygulamaları · query key'ler
@@ -291,7 +290,6 @@ isg360/
 │   │   ├── components/          Grid, detay paneli, fabrika seçici, ihlal bildirimleri/geçmişi…
 │   │   ├── config/ lib/         KKD sınıfları, ihlal türleri, durum etiketleri, saf yardımcılar
 │   │   └── types.ts             Kamera, ihlal, özet modelleri (backend şemalarıyla aynı)
-│   └── features/work-orders/ drones/   "Yakında" modülleri
 │
 ├── backend/                     Merkez (FastAPI)
 │   ├── app/
@@ -324,7 +322,7 @@ bağımsızdır ve hata durumlarında `AppError` fırlatır; repository'ler yaln
 ### Veri modeli
 
 - `factories`: id, kod, ad, şehir, saat dilimi.
-- `factory_zones`: fabrikaya bağlı bölgeler (kamera, drone ve iş kartları aynı bölgeyi kullanır).
+- `factory_zones`: fabrikaya bağlı bölgeler (kameralar ve ihlaller bölgeye bağlanır).
 - `edge_nodes`: fabrikaya bağlı saha sunucusu, API anahtarı özeti (SHA-256), etkinlik, son görülme, yazılım sürümü.
 - `cameras`: kod, ad, bölge, konum, durum, son sinyal, akış bilgisi, KKD sınıfları, `is_simulated`, `edge_node_id`.
 - `ppe_violations`: kamera, bölge, ihlal türü (`missing_ppe` / `restricted_area` / `missing_harness`), eksik KKD
@@ -360,7 +358,7 @@ Not: Alembic, enum değer kümesi (CHECK kısıtı) değişikliklerini algılama
 - **Yeni ihlal türü:** `packages/contracts/fcs_contracts/enums.py` → `ViolationType`; migration'da CHECK kısıtını güncelleyin;
   frontend `features/cameras/types.ts` → `ViolationType` ve `config/violation-types.ts`.
 - **Yeni KKD sınıfı:** `packages/contracts/fcs_contracts/enums.py` → `PpeClass`; frontend `PpeClassId` ve `config/ppe-classes.ts`.
-- **Yeni backend modülü (ör. drones):** `models/` → `repositories/` → `services/` → `schemas/` → `api/v1/endpoints/` ve router kaydı, ardından migration.
+- **Yeni backend modülü (ör. raporlama):** `models/` → `repositories/` → `services/` → `schemas/` → `api/v1/endpoints/` ve router kaydı, ardından migration.
 - **Yeni frontend modülü:** `modules/registry.ts` kaydı + `features/<modül>/` (kamera modülüyle aynı yapı) + rota.
 - **Gerçek kamera görüntüsü:** `SimulatedFeed` yer tutucudur; RTSP'nin WebRTC/HLS'e dönüştürülmesi gerekir (MediaMTX önerilir).
 

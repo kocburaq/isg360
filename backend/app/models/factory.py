@@ -1,4 +1,4 @@
-"""Fabrika yapısı: fabrika → bölgeler; kamera, drone ve iş kartları aynı bölgeleri kullanır."""
+"""Fabrika yapısı: fabrika → bölgeler → kameralar."""
 
 from typing import TYPE_CHECKING
 

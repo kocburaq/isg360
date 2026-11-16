@@ -118,15 +118,18 @@ describe('SearchProvider and CommandMenu', () => {
       .not.toBeInTheDocument()
   })
 
-  it('navigates to coming-soon modules from the module registry', async () => {
+  it('lists only the camera module from the module registry', async () => {
     const screen = await renderWithSearchProvider()
-    const { getByPlaceholder, getByRole } = screen
+    const { getByPlaceholder, getByRole, getByText } = screen
 
     await openCommandPalette(screen)
 
-    await userEvent.click(getByRole('option', { name: 'Drone Yönetimi' }))
+    await expect.element(getByText('Drone Yönetimi')).not.toBeInTheDocument()
+    await expect.element(getByText('İş Kartları')).not.toBeInTheDocument()
 
-    expect(mocks.navigate).toHaveBeenCalledWith({ to: '/drones' })
+    await userEvent.click(getByRole('option', { name: 'Ana Kontrol Paneli' }))
+
+    expect(mocks.navigate).toHaveBeenCalledWith({ to: '/' })
     await expect
       .element(getByPlaceholder(COMMAND_MENU_PLACEHOLDER))
       .not.toBeInTheDocument()

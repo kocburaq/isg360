@@ -1,12 +1,10 @@
 import { type EntityId } from './common'
 
 /**
- * Modüller arası paylaşılan fabrika alan modeli.
- * Kamera, İş Kartları ve Drone modülleri aynı bölge (zone) kavramını kullanır;
- * böylece örneğin bir KKD ihlali ilgili bölgedeki iş kartına bağlanabilir.
+ * Fabrika alan modeli: fabrika → bölgeler → kameralar.
  */
 
-export type ModuleId = 'cameras' | 'work-orders' | 'drones'
+export type ModuleId = 'cameras'
 
 /** Fabrika (backend: GET /factories). */
 export type Factory = {
@@ -28,13 +26,4 @@ export type FactoryZone = {
   name: string
   /** Bina / hol / hat gibi üst konum bilgisi. */
   area: string
-}
-
-/**
- * Başka bir modüldeki kayda referans.
- * İleride ihlal → iş kartı, drone görevi → kamera gibi bağlantılar için kullanılır.
- */
-export type EntityRef = {
-  module: ModuleId
-  id: EntityId
 }
