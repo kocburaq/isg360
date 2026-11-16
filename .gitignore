@@ -44,3 +44,10 @@ __pycache__/
 *.db
 *.sqlite
 *.sqlite3
+
+# Vision / edge servisi (Python)
+vision/.venv/
+vision/.env
+vision/data/*
+!vision/data/.gitignore
+*.egg-info/

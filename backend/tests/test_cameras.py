@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from tests.conftest import API
 
 NEW_CAMERA = {
-    "code": "CAM-07",
+    "code": "CAM-21",
     "name": "Boyahane Girişi",
     "zoneId": "zone-production",
     "location": "Boya kabini 1 önü",
@@ -26,16 +26,24 @@ def test_list_cameras_returns_page_with_frontend_shape(client: TestClient) -> No
     r = client.get(f"{API}/cameras")
     assert r.status_code == 200
     body = r.json()
-    assert body["total"] == 6
+    assert body["total"] == 8
     assert body["page"] == 1
-    assert [c["code"] for c in body["items"]] == [f"CAM-0{i}" for i in range(1, 7)]
+    assert [c["code"] for c in body["items"]] == [f"CAM-0{i}" for i in range(1, 9)]
 
     cam = body["items"][0]
     assert set(cam) >= {
         "id", "code", "name", "zone", "location", "status", "lastSeenAt",
         "stream", "ppeClasses", "isSimulated", "createdAt", "updatedAt",
+        "factory", "edgeNodeId",
     }  # fmt: skip
-    assert cam["zone"] == {"id": "zone-entrance", "name": "Giriş ve Güvenlik", "area": "A Blok"}
+    assert cam["zone"] == {
+        "id": "zone-entrance",
+        "factoryId": "fac-default",
+        "name": "Giriş ve Güvenlik",
+        "area": "A Blok",
+    }
+    assert cam["factory"] == {"id": "fac-default", "code": "F01", "name": "Merkez Fabrika"}
+    assert cam["edgeNodeId"] is None
     assert cam["stream"]["protocol"] == "rtsp"
     assert cam["stream"]["configured"] is False
     assert cam["isSimulated"] is True
@@ -46,7 +54,12 @@ def test_list_cameras_filters(client: TestClient) -> None:
     assert [c["id"] for c in offline["items"]] == ["cam-05"]
 
     both = client.get(f"{API}/cameras", params=[("status", "offline"), ("status", "online")])
-    assert both.json()["total"] == 6
+    assert both.json()["total"] == 8
+
+    gebze = client.get(f"{API}/cameras", params={"factory_id": "fac-gebze"}).json()
+    assert [c["id"] for c in gebze["items"]] == ["cam-07", "cam-08"]
+    assert client.get(f"{API}/cameras", params={"factory_id": "fac-default"}).json()["total"] == 6
+    assert client.get(f"{API}/cameras", params={"factory_id": "nope"}).json()["total"] == 0
 
     zone = client.get(f"{API}/cameras", params={"zone_id": "zone-logistics"}).json()
     assert {c["id"] for c in zone["items"]} == {"cam-04", "cam-05"}
@@ -57,7 +70,7 @@ def test_list_cameras_filters(client: TestClient) -> None:
 
 def test_list_cameras_pagination(client: TestClient) -> None:
     body = client.get(f"{API}/cameras", params={"page": 3, "page_size": 2}).json()
-    assert body["total"] == 6
+    assert body["total"] == 8
     assert body["pageSize"] == 2
     assert [c["code"] for c in body["items"]] == ["CAM-05", "CAM-06"]
 
@@ -88,7 +101,7 @@ def test_create_camera(client: TestClient) -> None:
     assert r.status_code == 201, r.text
     cam = r.json()
     assert r.headers["location"] == f"{API}/cameras/{cam['id']}"
-    assert cam["code"] == "CAM-07"
+    assert cam["code"] == "CAM-21"
     assert cam["zone"]["id"] == "zone-production"
     # Telemetri olmadan durum bilinmez; elle eklenen kayıt simülasyon değildir
     assert cam["status"] == "unknown"
@@ -97,7 +110,8 @@ def test_create_camera(client: TestClient) -> None:
     assert cam["ppeClasses"] == ["helmet", "vest"]
 
     assert client.get(f"{API}/cameras/{cam['id']}").status_code == 200
-    assert client.get(f"{API}/cameras").json()["total"] == 7
+    assert client.get(f"{API}/cameras").json()["total"] == 9
+    assert cam["factory"]["id"] == "fac-default"
 
 
 def test_create_camera_rejects_duplicate_code_case_insensitive(client: TestClient) -> None:

@@ -9,6 +9,7 @@ from app.db.base import Base, TimestampMixin, UTCDateTime, portable_enum
 from app.models.enums import CameraStatus
 
 if TYPE_CHECKING:
+    from app.models.edge import EdgeNode
     from app.models.factory import FactoryZone
     from app.models.violation import PpeViolation
 
@@ -42,5 +43,12 @@ class Camera(TimestampMixin, Base):
     # True: durum ve kayıtlar simülasyon/örnek veridir, gerçek telemetri değildir.
     is_simulated: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Kamerayı okuyan saha sunucusu. Atanmışsa durum heartbeat'ten gelir;
+    # heartbeat kesilirse kamera çevrimdışı sayılır.
+    edge_node_id: Mapped[str | None] = mapped_column(
+        ForeignKey("edge_nodes.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+
     zone: Mapped["FactoryZone"] = relationship(back_populates="cameras", lazy="joined")
+    edge_node: Mapped["EdgeNode | None"] = relationship(back_populates="cameras")
     violations: Mapped[list["PpeViolation"]] = relationship(back_populates="camera")

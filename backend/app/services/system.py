@@ -1,7 +1,7 @@
 """Sağlık kontrolü ve panel özeti."""
 
 import logging
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -10,6 +10,7 @@ from app.core.config import APP_VERSION, Settings
 from app.db.base import utcnow
 from app.models.enums import CameraStatus, ViolationStatus
 from app.repositories.cameras import CameraRepository
+from app.repositories.edge import EdgeNodeRepository
 from app.repositories.violations import ViolationRepository
 from app.schemas.system import (
     CameraCounts,
@@ -59,6 +60,7 @@ class SystemService:
                 state="operational" if db_ok else "down",
                 detail="Bağlantı başarılı." if db_ok else "Veritabanına erişilemiyor.",
             ),
+            *self._edge_service_health(),
             # Aşağıdakiler bu aşamada yoktur; dürüstçe "simülasyon" olarak raporlanır.
             ServiceHealth(
                 id="inference",
@@ -82,15 +84,31 @@ class SystemService:
             services=services,
         )
 
+    def _edge_service_health(self) -> list[ServiceHealth]:
+        """Kayıtlı edge node varsa canlılık durumunu raporlar."""
+        cutoff = utcnow() - timedelta(seconds=self.settings.edge_heartbeat_timeout_s)
+        active, online = EdgeNodeRepository(self.session).count_online(cutoff)
+        if active == 0:
+            return []
+        state = "operational" if online == active else "degraded" if online else "down"
+        return [
+            ServiceHealth(
+                id="edge",
+                label="Saha sunucuları (edge)",
+                state=state,
+                detail=f"{online}/{active} edge node çevrimiçi.",
+            )
+        ]
+
     def start_of_today(self) -> datetime:
         local_now = utcnow().astimezone(self.settings.tz)
         return datetime.combine(local_now.date(), time.min, tzinfo=self.settings.tz)
 
-    def dashboard_summary(self) -> DashboardSummary:
+    def dashboard_summary(self, factory_id: str | None = None) -> DashboardSummary:
         cameras = CameraRepository(self.session)
         violations = ViolationRepository(self.session)
-        cam_counts = cameras.count_by_status()
-        vio_counts = violations.count_by_status()
+        cam_counts = cameras.count_by_status(factory_id)
+        vio_counts = violations.count_by_status(factory_id)
 
         return DashboardSummary(
             cameras=CameraCounts(
@@ -101,12 +119,14 @@ class SystemService:
             ),
             violations=ViolationCounts(
                 total=sum(vio_counts.values()),
-                today=violations.count_since(self.start_of_today()),
+                today=violations.count_since(self.start_of_today(), factory_id),
                 open=vio_counts.get(ViolationStatus.OPEN, 0),
                 acknowledged=vio_counts.get(ViolationStatus.ACKNOWLEDGED, 0),
                 resolved=vio_counts.get(ViolationStatus.RESOLVED, 0),
             ),
             generated_at=utcnow(),
             timezone=self.settings.app_timezone,
-            contains_simulated_data=cameras.any_simulated() or violations.any_simulated(),
+            contains_simulated_data=(
+                cameras.any_simulated(factory_id) or violations.any_simulated(factory_id)
+            ),
         )

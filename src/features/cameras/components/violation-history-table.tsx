@@ -30,14 +30,16 @@ import {
   DataTableToolbar,
 } from '@/components/data-table'
 import { QueryErrorState } from '@/components/query-error-state'
-import { getPpeClass, PPE_CLASSES } from '../config/ppe-classes'
+import { PPE_CLASSES } from '../config/ppe-classes'
 import { VIOLATION_SEVERITY, VIOLATION_STATUS } from '../config/status'
+import { VIOLATION_TYPES, violationLabelParts } from '../config/violation-types'
 import { useViolations } from '../hooks/use-camera-queries'
 import { type Camera, type PpeViolation } from '../types'
 import { ViolationStatusBadge } from './violation-status-badge'
 
 type ViolationHistoryTableProps = {
   cameras: Camera[]
+  factoryId?: string
 }
 
 const includesValue: FilterFn<PpeViolation> = (row, id, value: string[]) =>
@@ -46,7 +48,10 @@ const includesValue: FilterFn<PpeViolation> = (row, id, value: string[]) =>
 const includesAny: FilterFn<PpeViolation> = (row, id, value: string[]) =>
   value.some((v) => row.getValue<string[]>(id).includes(v))
 
-export function ViolationHistoryTable({ cameras }: ViolationHistoryTableProps) {
+export function ViolationHistoryTable({
+  cameras,
+  factoryId,
+}: ViolationHistoryTableProps) {
   const {
     data = [],
     isLoading,
@@ -54,7 +59,7 @@ export function ViolationHistoryTable({ cameras }: ViolationHistoryTableProps) {
     refetch,
     isFetching,
     isSuccess,
-  } = useViolations()
+  } = useViolations({ factoryId })
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'detectedAt', desc: true },
   ])
@@ -101,26 +106,32 @@ export function ViolationHistoryTable({ cameras }: ViolationHistoryTableProps) {
       },
       {
         accessorKey: 'missing',
-        meta: { label: 'Eksik KKD' },
-        header: 'Eksik KKD',
+        meta: { label: 'İhlal' },
+        header: 'İhlal',
         enableSorting: false,
         cell: ({ row }) => (
           <div className='flex flex-wrap gap-x-3 gap-y-1'>
-            {row.original.missing.map((id) => {
-              const ppe = getPpeClass(id)
-              return (
-                <span
-                  key={id}
-                  className='inline-flex items-center gap-1 whitespace-nowrap'
-                >
-                  <ppe.icon className='size-3.5 text-destructive' />
-                  {ppe.label}
-                </span>
-              )
-            })}
+            {violationLabelParts(row.original).map((part) => (
+              <span
+                key={part.key}
+                className='inline-flex items-center gap-1 whitespace-nowrap'
+              >
+                <part.icon className='size-3.5 text-destructive' />
+                {part.label}
+              </span>
+            ))}
           </div>
         ),
         filterFn: includesAny,
+      },
+      {
+        // Yalnızca filtre için (görünmez sütun)
+        id: 'violationType',
+        accessorFn: (row) => row.violationType ?? 'missing_ppe',
+        meta: { label: 'İhlal türü' },
+        header: 'Tür',
+        enableHiding: false,
+        filterFn: includesValue,
       },
       {
         accessorKey: 'severity',
@@ -187,7 +198,11 @@ export function ViolationHistoryTable({ cameras }: ViolationHistoryTableProps) {
     getPaginationRowModel: getPaginationRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
-    initialState: { pagination: { pageSize: 10 } },
+    initialState: {
+      pagination: { pageSize: 10 },
+      // Tür sütunu yalnızca filtre içindir; etiket "İhlal" sütununda gösterilir
+      columnVisibility: { violationType: false },
+    },
   })
 
   if (error && !isSuccess) {
@@ -213,6 +228,15 @@ export function ViolationHistoryTable({ cameras }: ViolationHistoryTableProps) {
             options: Object.entries(VIOLATION_STATUS).map(([value, m]) => ({
               value,
               label: m.label,
+            })),
+          },
+          {
+            columnId: 'violationType',
+            title: 'Tür',
+            options: Object.values(VIOLATION_TYPES).map((t) => ({
+              value: t.id,
+              label: t.label,
+              icon: t.icon,
             })),
           },
           {

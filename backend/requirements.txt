@@ -1,4 +1,8 @@
 # Çalışma zamanı bağımlılıkları (sürümler test edilen kombinasyona sabitlendi)
+
+# Edge ↔ merkez ortak sözleşme paketi (backend klasöründen kurulur)
+-e ../packages/contracts
+
 fastapi==0.146.0
 starlette==1.9.0
 pydantic==2.14.1

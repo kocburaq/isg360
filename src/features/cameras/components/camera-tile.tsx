@@ -55,7 +55,7 @@ export function CameraTile({
           <p className='truncate font-medium'>{camera.name}</p>
           <p className='flex items-center gap-1 truncate text-xs text-muted-foreground'>
             <MapPin className='size-3 shrink-0' />
-            {camera.zone.name} · {camera.zone.area}
+            {camera.factory.code} · {camera.zone.name} · {camera.zone.area}
           </p>
         </div>
         <div className='flex shrink-0 flex-col items-end gap-1'>

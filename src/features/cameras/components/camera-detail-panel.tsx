@@ -117,6 +117,18 @@ function CameraDetailLoader({
   )
 }
 
+/** Kamera durumunun nereden geldiğini dürüstçe belirtir. */
+function dataSourceLabel(camera: Camera): string {
+  if (camera.edgeNodeId) {
+    return camera.isSimulated
+      ? `Saha simülatörü · ${camera.edgeNodeId} (gerçek kamera değil)`
+      : `Saha sunucusu · ${camera.edgeNodeId} (canlı heartbeat)`
+  }
+  return camera.isSimulated
+    ? 'Simülasyon (örnek veri)'
+    : 'Elle kayıt · gerçek telemetri yok'
+}
+
 function CameraDetailContent({ camera }: { camera: Camera }) {
   const detections = useCameraDetections(
     camera.status === 'online' ? camera.id : undefined
@@ -125,6 +137,7 @@ function CameraDetailContent({ camera }: { camera: Camera }) {
 
   const info: [string, React.ReactNode][] = [
     ['Kamera kodu', <span className='font-mono'>{camera.code}</span>],
+    ['Fabrika', `${camera.factory.name} (${camera.factory.code})`],
     ['Bölge', `${camera.zone.name} (${camera.zone.area})`],
     ['Konum', camera.location || '—'],
     [
@@ -147,12 +160,7 @@ function CameraDetailContent({ camera }: { camera: Camera }) {
         'Hiç sinyal alınmadı'
       ),
     ],
-    [
-      'Veri kaynağı',
-      camera.isSimulated
-        ? 'Simülasyon (örnek veri)'
-        : 'Elle kayıt · gerçek telemetri yok',
-    ],
+    ['Veri kaynağı', dataSourceLabel(camera)],
   ]
 
   return (

@@ -13,17 +13,20 @@ import { type Camera } from '../types'
 import { ViolationItem } from './violation-item'
 
 type ViolationFeedProps = {
+  factoryId?: string
   camerasById: Map<string, Camera>
   onSelectCamera: (cameraId: string) => void
 }
 
 /** Açık ve incelenmekte olan ihlallerin bildirim listesi. */
 export function ViolationFeed({
+  factoryId,
   camerasById,
   onSelectCamera,
 }: ViolationFeedProps) {
   const { data, isLoading, error, refetch, isFetching } = useViolations({
     status: ['open', 'acknowledged'],
+    factoryId,
   })
   const openCount = data?.filter((v) => v.status === 'open').length ?? 0
 

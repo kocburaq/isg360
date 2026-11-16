@@ -63,6 +63,6 @@ def test_seed_is_idempotent_and_keeps_user_changes(
 
     with session_factory() as session:
         result = seed_demo_data(session)
-        assert (result.zones, result.cameras, result.violations) == (0, 0, 0)
+        assert (result.factories, result.zones, result.cameras, result.violations) == (0, 0, 0, 0)
         assert session.get(PpeViolation, "vio-0022").status == ViolationStatus.RESOLVED  # type: ignore[union-attr]
-        assert len(session.scalars(select(PpeViolation)).all()) == 22
+        assert len(session.scalars(select(PpeViolation)).all()) == 24

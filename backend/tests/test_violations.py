@@ -8,7 +8,7 @@ from tests.test_cameras import assert_error
 
 def test_list_violations_newest_first(client: TestClient) -> None:
     body = client.get(f"{API}/violations", params={"page_size": 100}).json()
-    assert body["total"] == 22
+    assert body["total"] == 24
     items = body["items"]
     assert items[0]["id"] == "vio-0022"
     times = [v["detectedAt"] for v in items]
@@ -18,7 +18,10 @@ def test_list_violations_newest_first(client: TestClient) -> None:
     assert set(v) >= {
         "id", "cameraId", "zoneId", "violationType", "missing", "detectedAt", "confidence",
         "severity", "status", "source", "description", "reviewedAt", "links",
+        "factoryId", "endedAt", "eventId", "edgeNodeId", "ruleId", "trackId", "modelRef",
     }  # fmt: skip
+    assert v["factoryId"] == "fac-default"
+    assert v["eventId"] is None and v["edgeNodeId"] is None
     assert v["violationType"] == "missing_ppe"
     assert v["source"] == "simulation"
     assert v["links"] == []
@@ -50,6 +53,10 @@ def test_list_violations_filters(client: TestClient) -> None:
     assert all(v["severity"] == "high" for v in high["items"])
 
     assert ids(zone_id="zone-hazmat") == {"vio-0013", "vio-0006"}
+    assert ids(factory_id="fac-gebze") == {"vio-0023", "vio-0024"}
+    assert len(ids(factory_id="fac-default", page_size=100)) == 22
+    assert len(ids(type="missing_ppe", page_size=100)) == 24
+    assert ids(type="restricted_area") == set()
 
 
 def test_list_violations_date_range_and_order(client: TestClient) -> None:
@@ -70,7 +77,7 @@ def test_list_violations_pagination(client: TestClient) -> None:
     page1 = client.get(f"{API}/violations", params={"page_size": 10}).json()
     page3 = client.get(f"{API}/violations", params={"page": 3, "page_size": 10}).json()
     assert len(page1["items"]) == 10
-    assert len(page3["items"]) == 2
+    assert len(page3["items"]) == 4
     assert page1["items"][0]["id"] != page3["items"][0]["id"]
 
 

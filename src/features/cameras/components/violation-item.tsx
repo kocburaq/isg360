@@ -2,8 +2,8 @@ import { Check, CheckCheck } from 'lucide-react'
 import { formatDateTime, formatPercent, formatRelative } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { getPpeClass } from '../config/ppe-classes'
 import { VIOLATION_SEVERITY } from '../config/status'
+import { violationLabelParts } from '../config/violation-types'
 import { useUpdateViolationStatus } from '../hooks/use-camera-queries'
 import { type Camera, type PpeViolation } from '../types'
 import { ViolationStatusBadge } from './violation-status-badge'
@@ -31,18 +31,15 @@ export function ViolationItem({
       <div className='flex items-start justify-between gap-2'>
         <div className='min-w-0 space-y-1'>
           <div className='flex flex-wrap items-center gap-1.5'>
-            {violation.missing.map((id) => {
-              const ppe = getPpeClass(id)
-              return (
-                <span
-                  key={id}
-                  className='inline-flex items-center gap-1 text-sm font-medium'
-                >
-                  <ppe.icon className='size-3.5 text-destructive' />
-                  {ppe.label} yok
-                </span>
-              )
-            })}
+            {violationLabelParts(violation).map((part) => (
+              <span
+                key={part.key}
+                className='inline-flex items-center gap-1 text-sm font-medium'
+              >
+                <part.icon className='size-3.5 text-destructive' />
+                {part.label}
+              </span>
+            ))}
           </div>
           {!hideCamera && camera && (
             <button
@@ -65,6 +62,8 @@ export function ViolationItem({
           {formatRelative(violation.detectedAt)} ·{' '}
           <span className={cn(severity.className)}>{severity.label} önem</span>{' '}
           · Güven {formatPercent(violation.confidence)}
+          {violation.edgeNodeId && ' · Saha sunucusu'}
+          {violation.endedAt && ' · bitti'}
         </p>
         {violation.status !== 'resolved' && (
           <div className='flex gap-1'>

@@ -8,7 +8,7 @@ describe('filterCameras', () => {
   const cameras = createMockCameras()
 
   it('returns all cameras with default filters', () => {
-    expect(filterCameras(cameras, DEFAULT_CAMERA_FILTERS)).toHaveLength(6)
+    expect(filterCameras(cameras, DEFAULT_CAMERA_FILTERS)).toHaveLength(8)
   })
 
   it('filters by status', () => {

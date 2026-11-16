@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Query
 
 from app.api.deps import AppSettings, DbSession
 from app.schemas.system import DashboardSummary, HealthOut
@@ -18,5 +20,11 @@ def health(db: DbSession, settings: AppSettings) -> HealthOut:
     tags=["Panel"],
     summary="Kamera ve ihlal özet sayıları",
 )
-def dashboard_summary(db: DbSession, settings: AppSettings) -> DashboardSummary:
-    return SystemService(db, settings).dashboard_summary()
+def dashboard_summary(
+    db: DbSession,
+    settings: AppSettings,
+    factory_id: Annotated[
+        str | None, Query(max_length=64, description="Fabrikaya göre filtre")
+    ] = None,
+) -> DashboardSummary:
+    return SystemService(db, settings).dashboard_summary(factory_id)

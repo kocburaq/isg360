@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     allowed_hosts: Annotated[list[str], NoDecode] = ["localhost", "127.0.0.1"]
 
     app_timezone: str = "Europe/Istanbul"
+
+    # --- Edge (saha sunucusu) ---
+    # Bu süre boyunca heartbeat gelmeyen, edge'e atanmış kameralar çevrimdışı sayılır
+    edge_heartbeat_timeout_s: int = Field(default=60, ge=10, le=3600)
+    # Canlılık kontrolünün çalışma aralığı (0: arka plan kontrolü kapalı, ör. testlerde)
+    edge_liveness_check_interval_s: int = Field(default=15, ge=0, le=600)
+    # Edge saatinin merkezden en fazla bu kadar ileride olmasına izin verilir
+    edge_max_clock_skew_s: int = Field(default=300, ge=0, le=3600)
 
     @field_validator("cors_origins", "allowed_hosts", mode="before")
     @classmethod

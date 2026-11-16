@@ -52,10 +52,22 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     engine = build_engine(_database_url())
+    is_sqlite = engine.dialect.name == "sqlite"
     with engine.connect() as connection:
+        if is_sqlite:
+            # SQLite "batch" migration'ları tabloyu yeniden oluşturur; FK kontrolü açıkken
+            # başvurulan tablo silinemez. Kontrol migration süresince kapatılır
+            # (PRAGMA yalnızca işlem dışında etkilidir) ve sonunda bütünlük doğrulanır.
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            connection.commit()
         _configure(connection=connection)
         with context.begin_transaction():
             context.run_migrations()
+        if is_sqlite:
+            broken = connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
+            connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+            if broken:
+                raise RuntimeError(f"Migration sonrası yabancı anahtar ihlalleri: {broken[:5]}")
     engine.dispose()
 
 

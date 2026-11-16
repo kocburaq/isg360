@@ -6,13 +6,17 @@ from app.api.deps import DbSession, PageParams
 from app.core.errors import error_body
 from app.models.enums import CameraStatus
 from app.repositories.cameras import CameraFilter, ZoneRepository
-from app.schemas.camera import CameraCreate, CameraOut, CameraUpdate, ZoneOut
+from app.repositories.edge import FactoryRepository
+from app.schemas.camera import CameraCreate, CameraOut, CameraUpdate, FactoryOut, ZoneOut
 from app.schemas.common import Page
 from app.services.cameras import CameraService
 
 router = APIRouter(tags=["Kameralar"])
 
 CameraId = Annotated[str, Path(min_length=1, max_length=64)]
+FactoryIdQuery = Annotated[
+    str | None, Query(max_length=64, description="Fabrikaya göre filtre")
+]
 
 _ERRORS = {
     404: {"description": "Kamera bulunamadı", "content": {"application/json": {"example": error_body("not_found", "Kamera bulunamadı: cam-99")}}},
@@ -21,9 +25,14 @@ _ERRORS = {
 }  # fmt: skip
 
 
+@router.get("/factories", response_model=list[FactoryOut], summary="Fabrikaları listele")
+def list_factories(db: DbSession) -> list[FactoryOut]:
+    return [FactoryOut.model_validate(f) for f in FactoryRepository(db).list()]
+
+
 @router.get("/zones", response_model=list[ZoneOut], summary="Fabrika bölgelerini listele")
-def list_zones(db: DbSession) -> list[ZoneOut]:
-    return [ZoneOut.model_validate(z) for z in ZoneRepository(db).list()]
+def list_zones(db: DbSession, factory_id: FactoryIdQuery = None) -> list[ZoneOut]:
+    return [ZoneOut.model_validate(z) for z in ZoneRepository(db).list(factory_id)]
 
 
 @router.get("/cameras", response_model=Page[CameraOut], summary="Kameraları listele")
@@ -34,12 +43,15 @@ def list_cameras(
         list[CameraStatus] | None,
         Query(alias="status", description="Duruma göre filtre (tekrarlanabilir)"),
     ] = None,
+    factory_id: FactoryIdQuery = None,
     zone_id: Annotated[str | None, Query(max_length=64)] = None,
     q: Annotated[
         str | None, Query(max_length=100, description="Kod, ad veya konumda arama")
     ] = None,
 ) -> Page[CameraOut]:
-    f = CameraFilter(statuses=status_ or (), zone_id=zone_id, search=q or None)
+    f = CameraFilter(
+        statuses=status_ or (), factory_id=factory_id, zone_id=zone_id, search=q or None
+    )
     items, total = CameraService(db).list(f, page=paging.page, page_size=paging.page_size)
     return Page(
         items=[CameraOut.from_model(c) for c in items],

@@ -60,9 +60,9 @@ function cameraHint(cameras: CameraSummary['cameras'] | undefined): string {
   return parts.length > 0 ? parts.join(' · ') : 'Tüm kameralar çevrimiçi'
 }
 
-export function CameraSummaryCards() {
+export function CameraSummaryCards({ factoryId }: { factoryId?: string }) {
   const { summary, system, isLoading, error, refetch, isRefetching } =
-    useCameraSummary()
+    useCameraSummary(factoryId)
 
   if (error && !summary) {
     return (

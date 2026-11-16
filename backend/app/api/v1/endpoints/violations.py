@@ -5,13 +5,13 @@ from fastapi import APIRouter, Path, Query
 
 from app.api.deps import DbSession, PageParams
 from app.core.errors import AppError
-from app.models.enums import PpeClass, ViolationSeverity, ViolationStatus
+from app.models.enums import PpeClass, ViolationSeverity, ViolationStatus, ViolationType
 from app.repositories.violations import ViolationFilter
 from app.schemas.common import Page
 from app.schemas.violation import ViolationOut, ViolationUpdate
 from app.services.violations import ViolationService
 
-router = APIRouter(prefix="/violations", tags=["KKD İhlalleri"])
+router = APIRouter(prefix="/violations", tags=["İhlaller"])
 
 ViolationId = Annotated[str, Path(min_length=1, max_length=64)]
 
@@ -26,7 +26,12 @@ def list_violations(
     db: DbSession,
     paging: PageParams,
     camera_id: Annotated[str | None, Query(max_length=64)] = None,
+    factory_id: Annotated[str | None, Query(max_length=64)] = None,
     zone_id: Annotated[str | None, Query(max_length=64)] = None,
+    type_: Annotated[
+        list[ViolationType] | None,
+        Query(alias="type", description="İhlal türüne göre filtre (tekrarlanabilir)"),
+    ] = None,
     status_: Annotated[
         list[ViolationStatus] | None,
         Query(alias="status", description="Duruma göre filtre (tekrarlanabilir)"),
@@ -46,8 +51,10 @@ def list_violations(
             )
     f = ViolationFilter(
         camera_id=camera_id,
+        factory_id=factory_id,
         zone_id=zone_id,
         statuses=status_ or (),
+        types=type_ or (),
         severities=severity or (),
         ppe=ppe or (),
         detected_from=detected_from,

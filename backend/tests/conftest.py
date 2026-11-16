@@ -34,7 +34,13 @@ def db_url(tmp_path: Path) -> str:
 
 @pytest.fixture
 def settings(db_url: str) -> Settings:
-    return Settings(_env_file=None, app_env="test", database_url=db_url)  # type: ignore[call-arg]
+    return Settings(  # type: ignore[call-arg]
+        _env_file=None,
+        app_env="test",
+        database_url=db_url,
+        # Arka plan canlılık döngüsü testlerde kapalı; mantık doğrudan test edilir
+        edge_liveness_check_interval_s=0,
+    )
 
 
 @pytest.fixture

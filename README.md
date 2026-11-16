@@ -4,24 +4,49 @@ Endüstriyel fabrikalar için yapay zekâ destekli, modüler yönetim sistemi.
 
 - **1. aşama:** Web arayüzü (React)
 - **2. aşama:** FastAPI backend, SQLite veritabanı ve Kamera Yönetimi'nin API ile çalışması
+- **3.1 aşaması:** Çok fabrikalı yapı, saha sunucusu (edge) ↔ merkez API'si, ortak sözleşme paketi ve edge simülatörü
 
 Akış: **Admin Girişi → Ana Kontrol Paneli → Modül Seçimi**
 
-| Modül           | Durum                                                                    |
-| --------------- | ------------------------------------------------------------------------ |
-| Kamera Yönetimi | Arayüz + REST API + kalıcı veritabanı (kayıtlar örnek/simülasyon verisi) |
-| İş Kartları     | "Yakında" sayfası                                                        |
-| Drone Yönetimi  | "Yakında" sayfası                                                        |
+| Modül           | Durum                                                                            |
+| --------------- | -------------------------------------------------------------------------------- |
+| Kamera Yönetimi | Arayüz + REST API + kalıcı veritabanı + edge olayları (henüz simülatör kaynaklı) |
+| İş Kartları     | "Yakında" sayfası                                                                |
+| Drone Yönetimi  | "Yakında" sayfası                                                                |
 
 > **Güvenlik ve prototip uyarısı**
 >
-> - Backend API'de **henüz kimlik doğrulama/yetkilendirme yoktur.** Yalnızca yerel geliştirme içindir;
->   `127.0.0.1` üzerinde çalıştırın, ağa veya internete açmayın, gerçek kameralara bağlamayın.
+> - Panel API'sinde (`/api/v1`) **henüz kullanıcı kimlik doğrulaması/yetkilendirme yoktur.** Yalnızca yerel
+>   geliştirme içindir; `127.0.0.1` üzerinde çalıştırın, ağa veya internete açmayın.
+> - Edge API'si (`/edge/v1`) edge node başına **API anahtarı** ister; anahtarlar yalnızca SHA-256 özeti olarak saklanır.
 > - Arayüzdeki "Demo Modu" girişi **hiçbir güvenlik sağlamaz**.
-> - Kamera ve ihlal kayıtları örnek (simülasyon) verileridir. Gerçek kamera, RTSP akışı veya YOLO modeli bağlı değildir;
->   arayüzde ve API yanıtlarında (`isSimulated`, `source: "simulation"`) bu şekilde etiketlenir.
+> - Gerçek kamera, RTSP akışı veya YOLO modeli bağlı değildir. Seed kayıtları ve simülatör olayları
+>   `isSimulated` / `source: "simulation"` olarak etiketlenir ve arayüzde öyle gösterilir.
 
 Proje, [satnaing/shadcn-admin](https://github.com/satnaing/shadcn-admin) şablonu (MIT) temel alınarak geliştirilmiştir.
+
+---
+
+## Mimari (hedef)
+
+Her fabrikada bir **saha sunucusu (edge)** kameraları okur, modeli çalıştırır ve kuralları uygular; merkeze
+yalnızca **olaylar, kamera durumu (heartbeat) ve kanıt görüntüsü** gider. Canlı video FastAPI'den geçmez.
+
+```
+ FABRİKA                                      MERKEZ
+┌──────────────────────────────┐   HTTPS   ┌───────────────────────────────┐
+│ vision/ (edge servisi)        │──────────►│ backend/  /edge/v1 (API anahtarı)│
+│  sync/: yapılandırma, heartbeat│◄──────────│   config · heartbeat · events  │
+│         kalıcı olay kuyruğu    │           │ backend/  /api/v1  (panel)      │
+│  (3.2+) rules · ingest ·       │           │ SQLite → PostgreSQL            │
+│         inference · tracking   │           └──────────────┬────────────────┘
+└──────────────────────────────┘                          │ REST
+        ▲ packages/contracts: iki tarafın ortak şeması      ▼
+                                                  Web paneli (src/)
+```
+
+**3.1'de çalışan:** sözleşme paketi, edge API'si, edge node yönetimi (CLI), heartbeat ile kamera durumu,
+heartbeat kesilince kameraların çevrimdışı olması, idempotent olay alma ve gerçek kamera yerine **simülatör**.
 
 ---
 
@@ -30,6 +55,8 @@ Proje, [satnaing/shadcn-admin](https://github.com/satnaing/shadcn-admin) şablon
 **Frontend:** React 19 · Vite · TypeScript · TanStack Router / Query / Table · Tailwind CSS 4 · shadcn/ui · Zustand · Zod
 
 **Backend:** Python 3.11+ · FastAPI · Pydantic v2 · SQLAlchemy 2.0 · Alembic · SQLite (PostgreSQL'e hazır) · pytest
+
+**Edge (vision):** Python 3.11+ · httpx · Pydantic · SQLite (yerel olay kuyruğu)
 
 ---
 
@@ -77,17 +104,43 @@ Copy-Item .env.example .env
 Sırasıyla bu komutlar:
 
 1. Sanal ortamı oluşturur.
-2. Bağımlılıkları kurar.
+2. Bağımlılıkları ve ortak sözleşme paketini (`packages/contracts`) kurar.
 3. Ayar dosyasını oluşturur.
 4. Veritabanı tablolarını migration ile kurar (`backend\data\fcs_dev.db`).
-5. Örnek kamera ve ihlal verilerini yükler.
+5. Örnek fabrika, bölge, kamera ve ihlal verilerini yükler.
 
 Seed komutu tekrar çalıştırılabilir: eksik kayıtları ekler, mevcutları (ör. "İncelendi" yapılmış ihlalleri)
-değiştirmez. Örnek veriyi sıfırlamak için `.\.venv\Scripts\python.exe -m app.db.seed --reset` kullanılır.
+değiştirmez. Her şeyi sıfırlamak için `.\.venv\Scripts\python.exe -m app.db.seed --reset` kullanılır
+(**edge node'lar ve API anahtarları da silinir**).
 
-### 4. Çalıştırma
+> **2. aşamadan güncelliyorsanız:** `backend` klasöründe
+> `.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt`, ardından `alembic upgrade head` ve
+> `app.db.seed` komutlarını çalıştırın. Migration mevcut verileri korur ve bölgeleri "Merkez Fabrika"ya bağlar.
 
-İki ayrı PowerShell penceresi açın.
+### 4. Edge simülatörü kurulumu (isteğe bağlı)
+
+Gerçek kamera ve model olmadan edge ↔ merkez akışını denemek içindir.
+
+```powershell
+# 1) Edge node oluştur ve kamera ata (API anahtarı yalnızca bir kez gösterilir)
+cd C:\Projeler\isg360\backend
+.\.venv\Scripts\python.exe -m app.cli.edge_nodes create --factory fac-default --name "Merkez Simülatör" --cameras cam-01,cam-02,cam-03
+
+# 2) Vision ortamını kur
+cd C:\Projeler\isg360\vision
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+Copy-Item .env.example .env
+# .env dosyasında EDGE_API_KEY= satırına 1. adımda verilen anahtarı yazın
+```
+
+Diğer edge node komutları: `list`, `assign --node <id> --cameras ...`, `unassign --cameras ...`,
+`rotate-key --node <id>`, `deactivate --node <id>`. Node ve anahtar yönetimi, panel API'sinde kullanıcı kimlik
+doğrulaması olmadığı için bilinçli olarak yalnızca bu yerel komutla yapılır.
+
+### 5. Çalıştırma
+
+Ayrı PowerShell pencereleri açın.
 
 **Pencere 1 — Backend (FastAPI):**
 
@@ -108,10 +161,21 @@ npm run dev:api
 
 Tarayıcıda <http://localhost:5173> adresini açın ve **"Demo Modu ile Giriş"** butonunu kullanın.
 
+**Pencere 3 — Edge simülatörü (isteğe bağlı):**
+
+```powershell
+cd C:\Projeler\isg360\vision
+.\.venv\Scripts\python.exe -m fcs_vision.simulator --event-probability 0.3
+```
+
+Seçenekler: `--once` (tek tur), `--seed 42` (tekrarlanabilir senaryo), `--offline cam-02` (kamerayı çevrimdışı bildir),
+`--interval 5`. Simülatör çalışırken atanmış kameralar "Çevrimiçi" olur ve panelde "Saha sunucusu" etiketli ihlaller
+belirir. Simülatör durdurulduğunda kameralar heartbeat zaman aşımından (varsayılan 60 sn) sonra "Çevrimdışı" olur.
+
 **Backend olmadan (mock modu):** `npm run dev` yeterlidir. Arayüz tarayıcı içindeki örnek veriyle çalışır.
 Bu modda yapılan değişiklikler sayfa yenilenince sıfırlanır.
 
-### 5. Testler ve kontroller
+### 6. Testler ve kontroller
 
 ```powershell
 # Frontend
@@ -121,8 +185,14 @@ npm run test:browser:install   # yalnızca ilk sefer (Playwright Chromium)
 npm test
 npm run build
 
-# Backend
+# Backend (sözleşme paketi testleri de bu ortamda çalışır)
 cd backend
+.\.venv\Scripts\python.exe -m pytest
+cd ..\packages\contracts
+..\..\backend\.venv\Scripts\python.exe -m pytest
+
+# Edge (vision)
+cd ..\..\vision
 .\.venv\Scripts\python.exe -m pytest
 ```
 
@@ -143,38 +213,68 @@ cd backend
 
 ### Backend (`backend\.env`)
 
-| Değişken        | Varsayılan                    | Açıklama                                                       |
-| --------------- | ----------------------------- | -------------------------------------------------------------- |
-| `APP_ENV`       | `development`                 | Yalnızca `development`/`test`; başka değerle uygulama başlamaz |
-| `DATABASE_URL`  | `sqlite:///./data/fcs_dev.db` | SQLAlchemy adresi (göreli yol `backend\` klasörüne göre)       |
-| `CORS_ORIGINS`  | localhost:5173 / 4173         | İzin verilen frontend origin'leri (`*` reddedilir)             |
-| `ALLOWED_HOSTS` | `localhost,127.0.0.1`         | Kabul edilen Host başlıkları (LAN/IP erişimini engeller)       |
-| `APP_TIMEZONE`  | `Europe/Istanbul`             | "Bugünkü ihlaller" hesabı için saat dilimi                     |
-| `DB_ECHO`       | `false`                       | SQL sorgularını konsola yazdır                                 |
+| Değişken                         | Varsayılan                    | Açıklama                                                       |
+| -------------------------------- | ----------------------------- | -------------------------------------------------------------- |
+| `APP_ENV`                        | `development`                 | Yalnızca `development`/`test`; başka değerle uygulama başlamaz |
+| `DATABASE_URL`                   | `sqlite:///./data/fcs_dev.db` | SQLAlchemy adresi (göreli yol `backend\` klasörüne göre)       |
+| `CORS_ORIGINS`                   | localhost:5173 / 4173         | İzin verilen frontend origin'leri (`*` reddedilir)             |
+| `ALLOWED_HOSTS`                  | `localhost,127.0.0.1`         | Kabul edilen Host başlıkları (LAN/IP erişimini engeller)       |
+| `APP_TIMEZONE`                   | `Europe/Istanbul`             | "Bugünkü ihlaller" hesabı için saat dilimi                     |
+| `DB_ECHO`                        | `false`                       | SQL sorgularını konsola yazdır                                 |
+| `EDGE_HEARTBEAT_TIMEOUT_S`       | `60`                          | Bu süre heartbeat gelmeyen edge kameraları çevrimdışı olur     |
+| `EDGE_LIVENESS_CHECK_INTERVAL_S` | `15`                          | Canlılık kontrolü aralığı (`0` = kapalı)                       |
+| `EDGE_MAX_CLOCK_SKEW_S`          | `300`                         | Edge saatinin ileride olabileceği en fazla süre                |
 
-`.env` dosyaları, veritabanı dosyaları ve `.venv` Git'e eklenmez (`.gitignore`).
+### Edge (`vision\.env`)
+
+| Değişken                    | Varsayılan                      | Açıklama                               |
+| --------------------------- | ------------------------------- | -------------------------------------- |
+| `EDGE_API_URL`              | `http://127.0.0.1:8000/edge/v1` | Merkez edge API adresi                 |
+| `EDGE_API_KEY`              | —                               | `app.cli.edge_nodes create` çıktısı    |
+| `EDGE_OUTBOX_PATH`          | `./data/outbox.db`              | Gönderilemeyen olayların yerel kuyruğu |
+| `EDGE_HEARTBEAT_INTERVAL_S` | `10`                            | Tur (heartbeat) aralığı                |
+| `EDGE_HTTP_TIMEOUT_S`       | `10`                            | HTTP zaman aşımı                       |
+
+`.env` dosyaları, veritabanı/kuyruk dosyaları ve `.venv` klasörleri Git'e eklenmez (`.gitignore`).
 
 ---
 
-## REST API (`/api/v1`)
+## REST API
 
-| Yöntem   | Yol                  | Açıklama                                                                                   |
-| -------- | -------------------- | ------------------------------------------------------------------------------------------ |
-| `GET`    | `/health`            | Servis durumları (API, veritabanı; YOLO ve RTSP "simülasyon" olarak raporlanır)            |
-| `GET`    | `/cameras`           | Sayfalı liste · `status` (tekrarlanabilir), `zone_id`, `q`, `page`, `page_size`            |
-| `GET`    | `/cameras/{id}`      | Kamera ayrıntısı                                                                           |
-| `POST`   | `/cameras`           | Kamera ekle (`201`, yeni kamera durumu `unknown`)                                          |
-| `PATCH`  | `/cameras/{id}`      | Kısmi güncelleme                                                                           |
-| `DELETE` | `/cameras/{id}`      | Sil (`204`); ihlal kaydı olan kamera İSG geçmişi için silinemez (`409`)                    |
-| `GET`    | `/violations`        | Sayfalı liste · `camera_id`, `zone_id`, `status`, `severity`, `ppe`, `from`, `to`, `order` |
-| `GET`    | `/violations/{id}`   | İhlal ayrıntısı                                                                            |
-| `PATCH`  | `/violations/{id}`   | `{ "status": "acknowledged" }` ve/veya `{ "description": "..." }`                          |
-| `GET`    | `/dashboard/summary` | Kamera ve ihlal sayıları (bugün, açık, incelenen, çözülen)                                 |
-| `GET`    | `/zones`             | Fabrika bölgeleri                                                                          |
+### Panel API (`/api/v1`) — kimlik doğrulama yok, yalnızca yerel
 
-- **Liste yanıtı:** `{ "items": [...], "total": 22, "page": 1, "pageSize": 50 }`. JSON alan adları camelCase'tir ve frontend tipleriyle aynıdır.
-- **Hata yanıtı (her durumda):** `{ "error": { "code": "not_found", "message": "Kamera bulunamadı: cam-99", "details": null } }`
-- **Durum kodları:** `404` bulunamadı · `409` çakışma · `422` doğrulama hatası (`details` alan bazlı) · `500` iç hata (ayrıntı sızdırılmaz)
+| Yöntem   | Yol                  | Açıklama                                                                                                         |
+| -------- | -------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/health`            | Servis durumları (API, veritabanı, edge node'lar; YOLO ve RTSP "simülasyon")                                     |
+| `GET`    | `/factories`         | Fabrikalar                                                                                                       |
+| `GET`    | `/zones`             | Bölgeler · `factory_id`                                                                                          |
+| `GET`    | `/cameras`           | Sayfalı liste · `factory_id`, `status` (tekrarlanabilir), `zone_id`, `q`, `page`, `page_size`                    |
+| `GET`    | `/cameras/{id}`      | Kamera ayrıntısı                                                                                                 |
+| `POST`   | `/cameras`           | Kamera ekle (`201`, yeni kamera durumu `unknown`)                                                                |
+| `PATCH`  | `/cameras/{id}`      | Kısmi güncelleme                                                                                                 |
+| `DELETE` | `/cameras/{id}`      | Sil (`204`); ihlal kaydı olan kamera İSG geçmişi için silinemez (`409`)                                          |
+| `GET`    | `/violations`        | Sayfalı liste · `factory_id`, `camera_id`, `zone_id`, `type`, `status`, `severity`, `ppe`, `from`, `to`, `order` |
+| `GET`    | `/violations/{id}`   | İhlal ayrıntısı                                                                                                  |
+| `PATCH`  | `/violations/{id}`   | `{ "status": "acknowledged" }` ve/veya `{ "description": "..." }`                                                |
+| `GET`    | `/dashboard/summary` | Kamera ve ihlal sayıları · `factory_id`                                                                          |
+
+### Edge API (`/edge/v1`) — `Authorization: Bearer <edge API anahtarı>`
+
+| Yöntem | Yol          | Açıklama                                                                                                 |
+| ------ | ------------ | -------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/config`    | Node bilgisi ve atanmış kameralar. `ETag` döner; `If-None-Match` ile değişmediyse `304`                  |
+| `POST` | `/heartbeat` | Kamera durumları (`online`/`offline`), yazılım sürümü, `simulated` bayrağı                               |
+| `POST` | `/events`    | Toplu ihlal olayları (en fazla 100). Olay başına sonuç: `created` / `duplicate` / `updated` / `rejected` |
+
+- **Idempotency:** Her olay edge'de üretilen `eventId` taşır; aynı olay tekrar gelirse `duplicate`, bitiş zamanı
+  eklenmişse `updated` döner. Başka bir node'un `eventId`'si `rejected (event_id_conflict)` olur.
+- **Reddedilen olaylar** (`camera_not_assigned`, `future_timestamp`) yeniden denenmez; edge bunları yerel kuyrukta
+  inceleme için saklar.
+- **Sözleşme sürümü:** İstemci `X-FCS-Contract-Version: 1` gönderir; uyumsuz sürüm `400 unsupported_contract` alır.
+- **Hata kodları:** `401` anahtar yok/geçersiz · `403` node devre dışı · `422` doğrulama hatası.
+
+Ortak kurallar: liste yanıtı `{ "items": [...], "total", "page", "pageSize" }`; JSON alanları camelCase; hata yanıtı
+her zaman `{ "error": { "code", "message", "details" } }`.
 
 ---
 
@@ -183,54 +283,58 @@ cd backend
 ```
 isg360/
 ├── src/                         Frontend (React)
-│   ├── config/                  Uygulama sabitleri ve tipli ortam değişkenleri (env.ts)
-│   ├── modules/registry.ts      Modül kaydı (panel kartları, sidebar, komut menüsü)
-│   ├── types/                   Modüller arası ortak tipler (FactoryZone, EntityRef, Paginated…)
-│   ├── services/                http-client.ts (axios) · auth/ (demo + sunucu kimlik doğrulama sözleşmesi)
-│   ├── mocks/                   Mock modu örnek verisi
+│   ├── config/ modules/ types/  Ortam değişkenleri, modül kaydı, ortak tipler (Factory, FactoryZone, EntityRef…)
+│   ├── services/ mocks/         axios istemcisi, auth sözleşmesi, mock modu verisi
 │   ├── features/cameras/        Kamera Yönetimi
 │   │   ├── api/                 CameraService arayüzü · mock ve HTTP uygulamaları · query key'ler
 │   │   ├── hooks/               React Query hook'ları (bileşenlerin tek veri erişim noktası)
-│   │   ├── components/          Grid, detay paneli, KKD paneli, ihlal bildirimleri/geçmişi…
-│   │   ├── config/ lib/         KKD sınıf kaydı, durum etiketleri, saf yardımcılar
+│   │   ├── components/          Grid, detay paneli, fabrika seçici, ihlal bildirimleri/geçmişi…
+│   │   ├── config/ lib/         KKD sınıfları, ihlal türleri, durum etiketleri, saf yardımcılar
 │   │   └── types.ts             Kamera, ihlal, özet modelleri (backend şemalarıyla aynı)
-│   ├── features/work-orders/    İş Kartları (Yakında)
-│   ├── features/drones/         Drone Yönetimi (Yakında)
-│   └── components/ routes/ …    Ortak bileşenler (query-error-state dahil) ve rotalar
+│   └── features/work-orders/ drones/   "Yakında" modülleri
 │
-└── backend/                     Backend (FastAPI)
-    ├── app/
-    │   ├── main.py              Uygulama fabrikası: CORS, TrustedHost, hata işleyicileri, router
-    │   ├── core/                config.py (ortam değişkenleri) · errors.py (tutarlı hata yanıtları)
-    │   ├── db/                  base.py (taban model, UTC zaman tipi) · session.py · seed.py
-    │   ├── models/              SQLAlchemy modelleri: FactoryZone, Camera, PpeViolation, enum'lar
-    │   ├── repositories/        Veritabanı erişimi (yalnızca sorgular)
-    │   ├── services/            İş mantığı (doğrulama, çakışma, inceleme kuralları)
-    │   ├── schemas/             Pydantic istek/yanıt modelleri (camelCase JSON)
-    │   └── api/v1/              HTTP katmanı: endpoints/ + router.py
-    ├── alembic/                 Migration'lar (versions/)
-    ├── tests/                   pytest (her test geçici SQLite + migration + seed)
-    ├── requirements.txt         Çalışma zamanı bağımlılıkları
-    └── requirements-dev.txt     Test bağımlılıkları
+├── backend/                     Merkez (FastAPI)
+│   ├── app/
+│   │   ├── main.py              Uygulama fabrikası, CORS, TrustedHost, canlılık kontrol döngüsü
+│   │   ├── core/                config.py · errors.py · security.py (edge API anahtarları)
+│   │   ├── db/                  base.py · session.py · seed.py
+│   │   ├── models/              Factory, FactoryZone, Camera, EdgeNode, PpeViolation, enum'lar
+│   │   ├── repositories/        Veritabanı erişimi (yalnızca sorgular)
+│   │   ├── services/            İş mantığı (kameralar, ihlaller, edge, sistem)
+│   │   ├── schemas/             Pydantic istek/yanıt modelleri (camelCase JSON)
+│   │   ├── api/v1/              Panel API'si
+│   │   ├── api/edge/            Edge API'si (API anahtarıyla)
+│   │   └── cli/edge_nodes.py    Edge node oluşturma, kamera atama, anahtar yenileme
+│   ├── alembic/versions/        Migration'lar
+│   └── tests/                   pytest (her test geçici SQLite + migration + seed)
+│
+├── packages/contracts/          Edge ↔ merkez ortak sözleşmesi (Pydantic): olay, heartbeat, yapılandırma, enum'lar
+│
+└── vision/                      Saha (edge) servisi
+    ├── fcs_vision/
+    │   ├── sync/                client.py (merkez istemcisi) · outbox.py (kalıcı olay kuyruğu)
+    │   ├── simulator/           Seed'li senaryo üreteci + komut satırı
+    │   └── (3.2+) rules/ ingest/ inference/ tracking/ evidence/
+    └── tests/                   Sahte merkez (httpx MockTransport) ile testler
 ```
 
 **Backend katmanları:** `api` → `services` → `repositories` → `models`. HTTP katmanı iş kuralı içermez; servisler HTTP'den
 bağımsızdır ve hata durumlarında `AppError` fırlatır; repository'ler yalnızca parametreli SQLAlchemy sorguları çalıştırır.
-Şablondaki yapıya `repositories/` katmanı eklenmiştir: sorgular tek yerde toplanır ve PostgreSQL geçişi ile
-gelecekteki modüller (Drone, İş Kartları) servis mantığına dokunmadan genişletilebilir.
 
 ### Veri modeli
 
-- `factory_zones`: Modüller arası ortak bölge (kamera, drone ve iş kartları aynı bölgeyi kullanır).
-- `cameras`: id, kod (benzersiz), ad, bölge, konum, durum (`online`/`offline`/`unknown`), son sinyal, akış bilgisi, KKD sınıfları, `is_simulated`, oluşturma/güncelleme zamanları.
-- `ppe_violations`: id, kamera, bölge, ihlal türü (`missing_ppe`), eksik KKD listesi, tespit zamanı, güven skoru, önem, inceleme durumu (`open`/`acknowledged`/`resolved`), kaynak (`simulation`/`model`), açıklama, inceleme zamanı, oluşturma/güncelleme zamanları.
+- `factories`: id, kod, ad, şehir, saat dilimi.
+- `factory_zones`: fabrikaya bağlı bölgeler (kamera, drone ve iş kartları aynı bölgeyi kullanır).
+- `edge_nodes`: fabrikaya bağlı saha sunucusu, API anahtarı özeti (SHA-256), etkinlik, son görülme, yazılım sürümü.
+- `cameras`: kod, ad, bölge, konum, durum, son sinyal, akış bilgisi, KKD sınıfları, `is_simulated`, `edge_node_id`.
+- `ppe_violations`: kamera, bölge, ihlal türü (`missing_ppe` / `restricted_area` / `missing_harness`), eksik KKD
+  listesi, tespit ve bitiş zamanı, güven, önem, inceleme durumu, kaynak, açıklama; edge olaylarında ayrıca
+  `event_id` (benzersiz), `edge_node_id`, `rule_id`, `track_id`, `model_ref`.
 
-Taşınabilirlik için alınan önlemler:
+Fabrika bilgisi kamera ve ihlalde tekrar saklanmaz; bölge üzerinden türetilir (tutarsızlık riski olmaz).
 
-- Enum'lar VARCHAR + CHECK kısıtı olarak saklanır.
-- Kısıt adları sabittir.
-- Zamanlar UTC tutulur.
-- JSON alanları SQLite ve PostgreSQL'de aynı çalışır.
+Taşınabilirlik: enum'lar VARCHAR + CHECK kısıtı, sabit kısıt adları, UTC zamanlar, SQLite/PostgreSQL'de aynı çalışan JSON alanları.
+SQLite migration'ları FK kontrolü kapalıyken çalışır ve sonunda `PRAGMA foreign_key_check` ile bütünlük doğrulanır.
 
 ### PostgreSQL'e geçiş
 
@@ -240,35 +344,46 @@ Taşınabilirlik için alınan önlemler:
 
 ### Yeni migration oluşturma
 
-Model değiştirildikten sonra:
-
 ```powershell
 cd backend
 .\.venv\Scripts\python.exe -m alembic revision --autogenerate -m "aciklama"
 .\.venv\Scripts\python.exe -m alembic upgrade head
 ```
 
+Not: Alembic, enum değer kümesi (CHECK kısıtı) değişikliklerini algılamaz; bu değişiklikler migration'a elle yazılır
+(örnek: `20261115_..._factories_edge_nodes_and_edge_events.py`).
+
 ---
 
 ## Genişletme rehberi
 
-- **Yeni backend modülü (ör. drones):** `models/` → `repositories/` → `services/` → `schemas/` → `api/v1/endpoints/drones.py` dosyalarını oluşturun ve router'ı `api/v1/router.py` içinde kaydedin. Ardından migration üretin.
-- **Yeni frontend modülü:** `modules/registry.ts` içine kayıt ekleyin, `features/<modül>/` altında kamera modülüyle aynı yapıyı kurun ve rotayı ekleyin.
-- **Yeni KKD sınıfı:** Sırasıyla şu yerlere ekleyin: backend `models/enums.py` → `PpeClass`; frontend `features/cameras/types.ts` → `PpeClassId`; `config/ppe-classes.ts`.
-- **Gerçek kamera görüntüsü:** `SimulatedFeed` yer tutucudur. RTSP'nin backend'de WebRTC/HLS'e dönüştürülmesi gerekir. Tespit kutusu katmanı (`BoundingBox`) aynen kullanılabilir.
-- **Modüller arası bağlantı:** `PpeViolation.links` (`EntityRef`) ileride ihlal → düzeltici faaliyet iş kartı gibi bağlantılar için ayrılmıştır.
+- **Yeni ihlal türü:** `packages/contracts/fcs_contracts/enums.py` → `ViolationType`; migration'da CHECK kısıtını güncelleyin;
+  frontend `features/cameras/types.ts` → `ViolationType` ve `config/violation-types.ts`.
+- **Yeni KKD sınıfı:** `packages/contracts/fcs_contracts/enums.py` → `PpeClass`; frontend `PpeClassId` ve `config/ppe-classes.ts`.
+- **Yeni backend modülü (ör. drones):** `models/` → `repositories/` → `services/` → `schemas/` → `api/v1/endpoints/` ve router kaydı, ardından migration.
+- **Yeni frontend modülü:** `modules/registry.ts` kaydı + `features/<modül>/` (kamera modülüyle aynı yapı) + rota.
+- **Gerçek kamera görüntüsü:** `SimulatedFeed` yer tutucudur; RTSP'nin WebRTC/HLS'e dönüştürülmesi gerekir (MediaMTX önerilir).
 
 ---
 
 ## Tamamlanmayanlar / sonraki aşamalar
 
-- **Kimlik doğrulama ve yetkilendirme:** Henüz yok. Hem API hem arayüz için ayrıca geliştirilecek; httpOnly çerez ile oturum ve rol bazlı yetki önerilir.
-- **YOLO tabanlı KKD tespiti ve model eğitimi:** HTTP modunda tespit kutuları gösterilmez; backend tespit kaydı tutmaz.
-- **Kamera akışı:** RTSP IP kamera bağlantısı, WebRTC/HLS yayını ve kamera durumlarının gerçek telemetriden güncellenmesi henüz yok.
-- **Gerçek zamanlı bildirimler (WebSocket/SSE):** Şu an API modunda 5 saniyelik yenileme kullanılıyor.
-- **Kamera ekleme/düzenleme formu:** API hazır, arayüzü henüz yok.
-- **Diğer modüller:** Drone ve İş Kartları modüllerinin işlevleri yok.
-- **Altyapı:** Docker Compose ve production deployment yapılmadı.
+| Aşama | İçerik                                                                                                           |
+| ----- | ---------------------------------------------------------------------------------------------------------------- |
+| 3.2   | Kural motoru (KKD, yasaklı bölge, yüksekte çalışma, süre ve tekrar bildirim kuralları) — video/model gerektirmez |
+| 3.3   | Akış okuma: dosya/RTSP, yeniden bağlanma, kare örnekleme, gerçek heartbeat                                       |
+| 3.4   | Çalıştırma ortamı, kişi dedektörü, takip, GPU/Docker kurulumu (YOLO lisans kararı gerekli)                       |
+| 3.5   | KKD eklentisi, model kaydı, uçtan uca video → olay → panel                                                       |
+| 3.6   | Panel: poligon/kural düzenleyici, kanıt görüntüleri, SSE ile anlık olaylar                                       |
+| 3.7   | Emniyet kemeri tespiti (veri toplama, etiketleme, ince ayar)                                                     |
+| 3.8   | Kullanıcı kimlik doğrulama ve roller, PostgreSQL, Docker Compose, pilot fabrika                                  |
+
+Bilinen sınırlamalar:
+
+- **Panel kimlik doğrulaması:** Panel API'sinde ve arayüzde gerçek kullanıcı doğrulaması yok (3.8). Edge API'si anahtarla korunur.
+- **Kamera ekleme ve edge atama:** Kamera ekleme/düzenleme formu yok, API hazır. Edge'e kamera atama yalnızca CLI ile yapılır.
+- **Anlık bildirim:** Panel 5 saniyede bir yeniler; SSE henüz yok.
+- **Edge kameralarında tespit kutuları:** Edge kameralarında tespit kutusu gösterilmez; merkez tespit karesi tutmaz.
 
 ---
 

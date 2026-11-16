@@ -1,5 +1,6 @@
 import { isToday } from 'date-fns'
 import { createMockCameras } from '@/mocks/cameras'
+import { mockFactories } from '@/mocks/factory-zones'
 import { createMockDetections } from '@/mocks/ppe-detections'
 import { createMockViolations } from '@/mocks/ppe-violations'
 import { createMockSystemStatus } from '@/mocks/system-status'
@@ -11,14 +12,25 @@ import { type CameraService } from './camera-service'
  * Yapılan değişiklikler (ör. ihlal durumu) sayfa yenilenene kadar korunur.
  */
 export function createMockCameraService(): CameraService {
+  const factories = Object.values(mockFactories)
   const cameras = createMockCameras()
   const detections = createMockDetections()
   const violations = createMockViolations()
 
+  const inFactory = (factoryId: string | undefined, id: string | undefined) =>
+    !factoryId || id === factoryId
+
   return {
-    async listCameras() {
+    async listFactories() {
+      await simulateLatency(100)
+      return clone(factories)
+    },
+
+    async listCameras(query) {
       await simulateLatency()
-      return clone(cameras)
+      return clone(
+        cameras.filter((c) => inFactory(query?.factoryId, c.factory.id))
+      )
     },
 
     async getCamera(cameraId) {
@@ -37,6 +49,7 @@ export function createMockCameraService(): CameraService {
       await simulateLatency()
       const result = violations
         .filter((v) => !query?.cameraId || v.cameraId === query.cameraId)
+        .filter((v) => inFactory(query?.factoryId, v.factoryId))
         .filter((v) => !query?.status || query.status.includes(v.status))
         .sort((a, b) => b.detectedAt.localeCompare(a.detectedAt))
       return clone(result)
@@ -61,23 +74,25 @@ export function createMockCameraService(): CameraService {
       return createMockSystemStatus()
     },
 
-    async getSummary() {
+    async getSummary(factoryId) {
       await simulateLatency(150)
+      const cams = cameras.filter((c) => inFactory(factoryId, c.factory.id))
+      const vios = violations.filter((v) => inFactory(factoryId, v.factoryId))
       const count = <T>(items: T[], predicate: (item: T) => boolean) =>
         items.filter(predicate).length
       return {
         cameras: {
-          total: cameras.length,
-          online: count(cameras, (c) => c.status === 'online'),
-          offline: count(cameras, (c) => c.status === 'offline'),
-          unknown: count(cameras, (c) => c.status === 'unknown'),
+          total: cams.length,
+          online: count(cams, (c) => c.status === 'online'),
+          offline: count(cams, (c) => c.status === 'offline'),
+          unknown: count(cams, (c) => c.status === 'unknown'),
         },
         violations: {
-          total: violations.length,
-          today: count(violations, (v) => isToday(new Date(v.detectedAt))),
-          open: count(violations, (v) => v.status === 'open'),
-          acknowledged: count(violations, (v) => v.status === 'acknowledged'),
-          resolved: count(violations, (v) => v.status === 'resolved'),
+          total: vios.length,
+          today: count(vios, (v) => isToday(new Date(v.detectedAt))),
+          open: count(vios, (v) => v.status === 'open'),
+          acknowledged: count(vios, (v) => v.status === 'acknowledged'),
+          resolved: count(vios, (v) => v.status === 'resolved'),
         },
         containsSimulatedData: true,
         generatedAt: new Date().toISOString(),

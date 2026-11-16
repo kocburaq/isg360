@@ -26,8 +26,23 @@ def _unique(values: list[PpeClass]) -> list[PpeClass]:
     return list(dict.fromkeys(values))
 
 
+class FactoryOut(ApiModel):
+    id: str
+    code: str
+    name: str
+    city: str | None
+    timezone: str
+
+
+class FactoryRef(ApiModel):
+    id: str
+    code: str
+    name: str
+
+
 class ZoneOut(ApiModel):
     id: str
+    factory_id: str
     name: str
     area: str
 
@@ -49,6 +64,7 @@ class CameraOut(ApiModel):
     id: str
     code: str
     name: str
+    factory: FactoryRef
     zone: ZoneOut
     location: str
     status: CameraStatus
@@ -58,6 +74,8 @@ class CameraOut(ApiModel):
     is_simulated: bool = Field(
         description="true ise durum ve kayıtlar simülasyondur; gerçek telemetri değildir."
     )
+    # Kamerayı okuyan saha sunucusu; atanmışsa durum heartbeat'ten gelir
+    edge_node_id: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -67,6 +85,7 @@ class CameraOut(ApiModel):
             id=camera.id,
             code=camera.code,
             name=camera.name,
+            factory=FactoryRef.model_validate(camera.zone.factory),
             zone=ZoneOut.model_validate(camera.zone),
             location=camera.location,
             status=camera.status,
@@ -79,6 +98,7 @@ class CameraOut(ApiModel):
             ),
             ppe_classes=[PpeClass(p) for p in camera.ppe_classes],
             is_simulated=camera.is_simulated,
+            edge_node_id=camera.edge_node_id,
             created_at=camera.created_at,
             updated_at=camera.updated_at,
         )

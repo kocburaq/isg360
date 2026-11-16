@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { cameraKeys, cameraService } from '../api'
 import {
   type Camera,
+  type CameraQuery,
   type ViolationQuery,
   type ViolationStatus,
 } from '../types'
@@ -11,10 +12,19 @@ import {
 /** Gerçek backend'de veriler periyodik yenilenir; mock modda gereksiz. */
 const LIVE_REFETCH_MS = env.dataSource === 'api' ? 5_000 : false
 
-export function useCameras() {
+export function useFactories() {
   return useQuery({
-    queryKey: cameraKeys.list(),
-    queryFn: () => cameraService.listCameras(),
+    queryKey: cameraKeys.factories(),
+    queryFn: () => cameraService.listFactories(),
+    // Fabrika listesi nadiren değişir
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useCameras(query?: CameraQuery) {
+  return useQuery({
+    queryKey: cameraKeys.list(query),
+    queryFn: () => cameraService.listCameras(query),
     refetchInterval: LIVE_REFETCH_MS,
   })
 }
@@ -67,16 +77,16 @@ export function useUpdateViolationStatus() {
       toast.success('İhlal kaydı güncellendi.')
       // Tüm filtre kombinasyonlarındaki ihlal listelerini ve özet sayıları yenile
       queryClient.invalidateQueries({ queryKey: cameraKeys.allViolations() })
-      queryClient.invalidateQueries({ queryKey: cameraKeys.summary() })
+      queryClient.invalidateQueries({ queryKey: cameraKeys.allSummaries() })
     },
   })
 }
 
 /** Üst özet kartları: sayılar ve servis durumları veri kaynağından gelir. */
-export function useCameraSummary() {
+export function useCameraSummary(factoryId?: string) {
   const summary = useQuery({
-    queryKey: cameraKeys.summary(),
-    queryFn: () => cameraService.getSummary(),
+    queryKey: cameraKeys.summary(factoryId),
+    queryFn: () => cameraService.getSummary(factoryId),
     refetchInterval: LIVE_REFETCH_MS,
   })
   const system = useSystemStatus()

@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Test bağımlılıkları
+pytest==9.1.1

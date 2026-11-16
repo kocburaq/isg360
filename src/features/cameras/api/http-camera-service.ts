@@ -1,5 +1,6 @@
 import { httpClient } from '@/services/http-client'
 import { type Paginated } from '@/types/common'
+import { type Factory } from '@/types/factory'
 import {
   type Camera,
   type CameraSummary,
@@ -11,11 +12,12 @@ import { type CameraService } from './camera-service'
 /**
  * FastAPI backend uygulaması (backend/ klasörü). Uç noktalar (/api/v1 altında):
  *
- *   GET   /cameras                 sayfalı liste
+ *   GET   /factories               fabrikalar
+ *   GET   /cameras                 sayfalı liste (?factory_id=)
  *   GET   /cameras/{id}            kamera ayrıntısı
- *   GET   /violations              ?camera_id=&status=open&status=...  (sayfalı)
+ *   GET   /violations              ?camera_id=&factory_id=&status=open&status=...  (sayfalı)
  *   PATCH /violations/{id}         { status }
- *   GET   /dashboard/summary       özet sayılar
+ *   GET   /dashboard/summary       özet sayılar (?factory_id=)
  *   GET   /health                  servis durumları
  *
  * Swagger: http://localhost:8000/docs
@@ -46,8 +48,13 @@ type HealthResponse = SystemStatus & { status: 'ok' | 'error' }
 
 export function createHttpCameraService(): CameraService {
   return {
-    listCameras() {
-      return fetchAll<Camera>('/cameras')
+    async listFactories() {
+      const { data } = await httpClient.get<Factory[]>('/factories')
+      return data
+    },
+
+    listCameras(query) {
+      return fetchAll<Camera>('/cameras', { factory_id: query?.factoryId })
     },
 
     async getCamera(cameraId) {
@@ -66,6 +73,7 @@ export function createHttpCameraService(): CameraService {
     listViolations(query) {
       return fetchAll<PpeViolation>('/violations', {
         camera_id: query?.cameraId,
+        factory_id: query?.factoryId,
         // Tekrarlanan parametre olarak gönderilir: status=open&status=acknowledged
         status: query?.status,
       })
@@ -88,8 +96,11 @@ export function createHttpCameraService(): CameraService {
       }
     },
 
-    async getSummary() {
-      const { data } = await httpClient.get<CameraSummary>('/dashboard/summary')
+    async getSummary(factoryId) {
+      const { data } = await httpClient.get<CameraSummary>(
+        '/dashboard/summary',
+        { params: { factory_id: factoryId } }
+      )
       return data
     },
   }

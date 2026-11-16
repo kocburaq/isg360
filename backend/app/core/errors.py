@@ -42,12 +42,24 @@ class InvalidReferenceError(AppError):
     code = "invalid_reference"
 
 
+class UnauthorizedError(AppError):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    code = "unauthorized"
+
+
+class ForbiddenError(AppError):
+    status_code = status.HTTP_403_FORBIDDEN
+    code = "forbidden"
+
+
 def error_body(code: str, message: str, details: Any = None) -> dict[str, Any]:
     return {"error": {"code": code, "message": message, "details": details}}
 
 
 _HTTP_CODES = {
     400: "bad_request",
+    401: "unauthorized",
+    403: "forbidden",
     404: "not_found",
     405: "method_not_allowed",
     409: "conflict",
@@ -58,9 +70,11 @@ _HTTP_CODES = {
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error(_: Request, exc: AppError) -> JSONResponse:
+        headers = {"WWW-Authenticate": "Bearer"} if exc.status_code == 401 else None
         return JSONResponse(
             status_code=exc.status_code,
             content=error_body(exc.code, exc.message, exc.details),
+            headers=headers,
         )
 
     @app.exception_handler(RequestValidationError)

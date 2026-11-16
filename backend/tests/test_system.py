@@ -32,9 +32,9 @@ def test_health(client: TestClient) -> None:
 
 def test_dashboard_summary(client: TestClient, db: Session, settings: Settings) -> None:
     body = client.get(f"{API}/dashboard/summary").json()
-    assert body["cameras"] == {"total": 6, "online": 5, "offline": 1, "unknown": 0}
+    assert body["cameras"] == {"total": 8, "online": 7, "offline": 1, "unknown": 0}
     v = body["violations"]
-    assert (v["total"], v["open"], v["acknowledged"], v["resolved"]) == (22, 3, 2, 17)
+    assert (v["total"], v["open"], v["acknowledged"], v["resolved"]) == (24, 3, 2, 19)
     assert body["containsSimulatedData"] is True
     assert body["timezone"] == "Europe/Istanbul"
 

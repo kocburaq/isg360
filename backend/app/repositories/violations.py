@@ -13,14 +13,18 @@ from app.models.enums import (
     PpeClass,
     ViolationSeverity,
     ViolationStatus,
+    ViolationType,
 )
+from app.repositories.cameras import zone_ids_of
 
 
 @dataclass(frozen=True)
 class ViolationFilter:
     camera_id: str | None = None
+    factory_id: str | None = None
     zone_id: str | None = None
     statuses: Sequence[ViolationStatus] = ()
+    types: Sequence[ViolationType] = ()
     severities: Sequence[ViolationSeverity] = ()
     ppe: Sequence[PpeClass] = ()
     detected_from: datetime | None = None
@@ -36,10 +40,14 @@ class ViolationRepository:
         stmt = select(PpeViolation)
         if f.camera_id:
             stmt = stmt.where(PpeViolation.camera_id == f.camera_id)
+        if f.factory_id:
+            stmt = stmt.where(PpeViolation.zone_id.in_(zone_ids_of(f.factory_id)))
         if f.zone_id:
             stmt = stmt.where(PpeViolation.zone_id == f.zone_id)
         if f.statuses:
             stmt = stmt.where(PpeViolation.status.in_(f.statuses))
+        if f.types:
+            stmt = stmt.where(PpeViolation.violation_type.in_(f.types))
         if f.severities:
             stmt = stmt.where(PpeViolation.severity.in_(f.severities))
         if f.ppe:
@@ -71,16 +79,21 @@ class ViolationRepository:
         stmt = select(func.count()).where(PpeViolation.camera_id == camera_id)
         return bool(self.session.scalar(stmt))
 
-    def count_by_status(self) -> dict[ViolationStatus, int]:
-        rows = self.session.execute(
-            select(PpeViolation.status, func.count()).group_by(PpeViolation.status)
-        )
+    @staticmethod
+    def _in_factory(stmt, factory_id: str | None):  # type: ignore[no-untyped-def]
+        if factory_id:
+            return stmt.where(PpeViolation.zone_id.in_(zone_ids_of(factory_id)))
+        return stmt
+
+    def count_by_status(self, factory_id: str | None = None) -> dict[ViolationStatus, int]:
+        stmt = select(PpeViolation.status, func.count()).group_by(PpeViolation.status)
+        rows = self.session.execute(self._in_factory(stmt, factory_id))
         return {status: count for status, count in rows}
 
-    def count_since(self, since: datetime) -> int:
+    def count_since(self, since: datetime, factory_id: str | None = None) -> int:
         stmt = select(func.count()).where(PpeViolation.detected_at >= since)
-        return self.session.scalar(stmt) or 0
+        return self.session.scalar(self._in_factory(stmt, factory_id)) or 0
 
-    def any_simulated(self) -> bool:
+    def any_simulated(self, factory_id: str | None = None) -> bool:
         stmt = select(func.count()).where(PpeViolation.source == DetectionSource.SIMULATION)
-        return bool(self.session.scalar(stmt))
+        return bool(self.session.scalar(self._in_factory(stmt, factory_id)))

@@ -1,5 +1,9 @@
 import { type EntityId, type ISODateString } from '@/types/common'
-import { type EntityRef, type FactoryZone } from '@/types/factory'
+import {
+  type EntityRef,
+  type FactoryRef,
+  type FactoryZone,
+} from '@/types/factory'
 
 /* ------------------------------------------------------------------ */
 /* Kamera                                                              */
@@ -13,6 +17,7 @@ export type Camera = {
   /** Saha etiketi, ör. "CAM-01". */
   code: string
   name: string
+  factory: FactoryRef
   zone: FactoryZone
   /** Kameranın fiziksel konumu (serbest metin). */
   location: string
@@ -30,6 +35,8 @@ export type Camera = {
   ppeClasses: PpeClassId[]
   /** true: durum ve kayıtlar simülasyon/örnek veridir, gerçek telemetri değildir. */
   isSimulated: boolean
+  /** Kamerayı okuyan saha sunucusu (edge); atanmışsa durum heartbeat'ten gelir. */
+  edgeNodeId: EntityId | null
   createdAt?: ISODateString
   updatedAt?: ISODateString
 }
@@ -86,6 +93,13 @@ export type DetectionSnapshot = {
 /* İhlaller                                                            */
 /* ------------------------------------------------------------------ */
 
+/**
+ * İhlal türleri (backend ve edge sözleşmesiyle aynı).
+ * Yeni tür eklemek için buraya ve `config/violation-types.ts` içine tanım eklenir.
+ */
+export type ViolationType =
+  'missing_ppe' | 'restricted_area' | 'missing_harness'
+
 export type ViolationStatus = 'open' | 'acknowledged' | 'resolved'
 export type ViolationSeverity = 'low' | 'medium' | 'high'
 
@@ -93,7 +107,9 @@ export type PpeViolation = {
   id: EntityId
   cameraId: EntityId
   zoneId: EntityId
-  /** Eksik tespit edilen KKD sınıfları. */
+  factoryId?: EntityId
+  violationType: ViolationType
+  /** Eksik tespit edilen KKD sınıfları (yalnızca missing_ppe türünde dolu). */
   missing: PpeClassId[]
   detectedAt: ISODateString
   confidence: number
@@ -104,13 +120,26 @@ export type PpeViolation = {
   description: string | null
   /** Açık durumdan çıkıldığı (incelendiği) zaman. */
   reviewedAt: ISODateString | null
+  /** İhlalin bittiği zaman (süren ihlallerde null). */
+  endedAt?: ISODateString | null
+  /** Edge kaynaklı olay bilgileri (seed kayıtlarında null). */
+  eventId?: string | null
+  edgeNodeId?: EntityId | null
+  ruleId?: string | null
+  trackId?: string | null
+  modelRef?: string | null
   /** İleride bağlanacak kayıtlar (ör. düzeltici faaliyet iş kartı). */
   links: EntityRef[]
 }
 
 export type ViolationQuery = {
   cameraId?: EntityId
+  factoryId?: EntityId
   status?: ViolationStatus[]
+}
+
+export type CameraQuery = {
+  factoryId?: EntityId
 }
 
 /* ------------------------------------------------------------------ */

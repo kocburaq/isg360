@@ -1,6 +1,26 @@
-"""Alan değer kümeleri. Frontend'deki TypeScript birleşim tipleriyle birebir aynıdır."""
+"""Alan değer kümeleri. Frontend'deki TypeScript birleşim tipleriyle birebir aynıdır.
+
+Edge ile paylaşılan değerler (KKD sınıfı, ihlal türü, önem, kaynak) ortak sözleşme
+paketinden (packages/contracts) gelir; böylece iki taraf asla ayrışmaz.
+"""
 
 from enum import StrEnum
+
+from fcs_contracts.enums import (
+    DetectionSource,
+    PpeClass,
+    ViolationSeverity,
+    ViolationType,
+)
+
+__all__ = [
+    "CameraStatus",
+    "DetectionSource",
+    "PpeClass",
+    "ViolationSeverity",
+    "ViolationStatus",
+    "ViolationType",
+]
 
 
 class CameraStatus(StrEnum):
@@ -10,32 +30,7 @@ class CameraStatus(StrEnum):
     UNKNOWN = "unknown"
 
 
-class PpeClass(StrEnum):
-    HELMET = "helmet"
-    VEST = "vest"
-    GLOVES = "gloves"
-    GOGGLES = "goggles"
-    SAFETY_BOOTS = "safety-boots"
-
-
-class ViolationType(StrEnum):
-    # İleride: restricted_area, unsafe_behavior vb.
-    MISSING_PPE = "missing_ppe"
-
-
 class ViolationStatus(StrEnum):
     OPEN = "open"
     ACKNOWLEDGED = "acknowledged"
     RESOLVED = "resolved"
-
-
-class ViolationSeverity(StrEnum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-
-
-class DetectionSource(StrEnum):
-    # "simulation": örnek/seed veri — gerçek kamera veya model çıktısı değildir.
-    SIMULATION = "simulation"
-    MODEL = "model"
